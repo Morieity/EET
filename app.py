@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, Response, stream_with_context
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -9,10 +9,19 @@ from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_community.document_loaders import PDFPlumberLoader
+from flask_cors import CORS
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="frontend/build", static_url_path="")
+app.json.ensure_ascii = False
+
+CORS(app)
+
+@app.route("/")
+def index():
+    return app.send_static_file("index.html")
+
 
 folder_path = "db"
 
@@ -46,12 +55,12 @@ def aiPost():
 
     print(f"query: {query}")
 
-    response = cached_llm.invoke(query)
+    def generate():
+        for chunk in cached_llm.stream(query):
+            if chunk.content:
+                yield chunk.content
 
-    print(response.content)
-
-    response_answer = {"answer": response.content}
-    return response_answer
+    return Response(stream_with_context(generate()), mimetype="text/plain")
 
 
 @app.route("/ask_pdf", methods=["POST"])
