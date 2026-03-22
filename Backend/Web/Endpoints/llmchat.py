@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response, stream_with_context
 from Backend.Application.UseCases.ask_pdf_use_case import AskPdfUseCase
 from Backend.Application.UseCases.chat_use_case import ChatUseCase
 from Backend.Application.UseCases.upload_pdf_use_case import UploadPdfUseCase
@@ -14,12 +14,25 @@ def create_blueprint(
 
     @blueprint.route("/ai", methods=["POST"])
     def ai_post():
-        """处理直接的模型对话请求。"""
+        """处理直接的模型对话请求，支持流式输出。"""
         json_content = request.json or {}
         query = json_content.get("query", "")
+        stream = json_content.get("stream", False)
+
         try:
-            answer = chat_use_case.execute(query)
-            return {"answer": answer}
+            if stream:
+                def generate():
+                    for chunk in chat_use_case.stream_execute(query):
+                        if chunk:
+                            yield chunk
+                response = Response(stream_with_context(generate()), mimetype="application/octet-stream")
+                response.headers["Cache-Control"] = "no-cache"
+                response.headers["Connection"] = "keep-alive"
+                response.headers["X-Accel-Buffering"] = "no" # 用于禁用 Nginx 的缓冲
+                return response
+            else:
+                answer = chat_use_case.execute(query)
+                return {"answer": answer}
         except Exception as exc:
             return jsonify({"status": "Error", "message": str(exc)}), 400
 

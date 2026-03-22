@@ -6,6 +6,10 @@ class ChatClient(Protocol):
         """将用户问题发送到模型后端并返回纯文本结果。"""
         ...
 
+    def stream_chat(self, query: str):
+        """流式返回回答内容。"""
+        ...
+
 
 class ChatUseCase:
     def __init__(self, chat_client: ChatClient):
@@ -17,3 +21,9 @@ class ChatUseCase:
         if not query:
             raise ValueError("Query is required")
         return self.chat_client.chat(query)
+
+    def stream_execute(self, query: str):
+        """校验输入并流式返回模型响应。"""
+        if not query:
+            raise ValueError("Query is required")
+        return self.chat_client.stream_chat(query)

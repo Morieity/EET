@@ -25,3 +25,8 @@ class DeepSeekChatProvider:
         """使用纯文本问题调用模型并返回回答内容。"""
         response = self._client.invoke(query)
         return response.content
+
+    def stream_chat(self, query: str):
+        """流式返回模型回答内容。"""
+        for chunk in self._client.stream(query):
+            yield chunk.content

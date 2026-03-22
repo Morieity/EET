@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
@@ -47,6 +48,7 @@ def create_app(db_path: str = "db", pdf_dir: str = "pdf") -> Flask:
     )
 
     app = Flask(__name__)
+    CORS(app)  # 允许跨域请求
     app.register_blueprint(
         create_blueprint(
             chat_use_case=chat_use_case,
