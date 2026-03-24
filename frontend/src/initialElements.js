@@ -6,5 +6,5 @@ export const initialNodes = [
 ];
 
 export const initialEdges = [{ 
-  id: 'n1-n2', source: 'n1', target: 'n2', type: 'default', label: 'edge from n1 to n2'
+  id: 'n1-n2', source: 'n1', target: 'n2', type: 'smoothstep', label: 'edge from n1 to n2'
 }];

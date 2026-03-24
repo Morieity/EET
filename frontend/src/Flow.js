@@ -4,11 +4,13 @@ import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, Controls, Backg
 import '@xyflow/react/dist/style.css';
 import AiChatPanel from './AiChatPanel';
 import TextUpdaterNode from './TextUpdaterNode';
+import GateNode from './GateNode';
 import { initialNodes, initialEdges } from './initialElements';
 import { getId, nodeColor, getLayoutedElements } from './utils';
 
 const nodeTypes = { 
-  textUpdater: TextUpdaterNode 
+  textUpdater: TextUpdaterNode,
+  gate: GateNode
 };
 
 export default function Flow() {
@@ -132,7 +134,7 @@ export default function Flow() {
     [],
   );
   const onConnect = useCallback(
-    (params) => setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
+    (params) => setEdges((edgesSnapshot) => addEdge({ ...params, type: 'smoothstep' }, edgesSnapshot)),
     [],
   );
 
@@ -155,6 +157,37 @@ export default function Flow() {
 
     setNodes((nds) => nds.concat(newNode));
   }, [screenToFlowPosition, setNodes]);
+
+  const onAddGate = useCallback((gateType) => {
+    const selectedNode = nodes.find((n) => n.selected);
+    if (!selectedNode) {
+      alert('Select a node first');
+      return;
+    }
+
+    const newNodeId = getId();
+    const position = {
+      x: selectedNode.position.x,
+      y: selectedNode.position.y + 150,
+    };
+
+    const newGateNode = {
+      id: newNodeId,
+      position,
+      type: 'gate',
+      data: { gateType },
+    };
+
+    const newEdge = {
+      id: `${selectedNode.id}-${newNodeId}`,
+      source: selectedNode.id,
+      target: newNodeId,
+      type: 'smoothstep',
+    };
+
+    setNodes((nds) => nds.concat(newGateNode));
+    setEdges((eds) => eds.concat(newEdge));
+  }, [nodes, setNodes, setEdges]);
 
   return (
     <>
@@ -246,6 +279,20 @@ export default function Flow() {
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ marginBottom: '8px', display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => onAddGate('AND')} 
+                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                      >
+                       ➕ &amp; 与门
+                      </button>
+                      <button 
+                        onClick={() => onAddGate('OR')} 
+                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                      >
+                       ➕ ≥1 或门
+                      </button>
+                    </div>
                     <label>
                       Label:
                       <input 
