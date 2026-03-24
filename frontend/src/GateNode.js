@@ -10,7 +10,7 @@ function AndGateIcon() {
           stroke="#333"
           strokeWidth="1.5"
         />
-        <text x="12" y="18" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">&amp;</text>
+        <text x="12" y="18" transform="rotate(90, 12, 18)" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">&amp;</text>
       </g>
     </svg>
   );
@@ -26,7 +26,7 @@ function OrGateIcon() {
           stroke="#333"
           strokeWidth="1.5"
         />
-        <text x="14" y="18" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">≥1</text>
+        <text x="14" y="18" transform="rotate(90, 14, 18)" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">≥1</text>
       </g>
     </svg>
   );
