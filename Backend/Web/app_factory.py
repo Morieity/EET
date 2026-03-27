@@ -14,6 +14,7 @@ from Backend.Infrastructure.llm.deepseek_client import DeepSeekChatProvider
 from Backend.Infrastructure.llm.diagnosis_llm_adapter import DiagnosisLlmAdapter
 from Backend.Infrastructure.persistence.database import init_db
 from Backend.Infrastructure.persistence.session_repository import SessionRepositoryImpl
+from Backend.Infrastructure.skill import LlmFaultTreeSkill
 from Backend.Infrastructure.vectorstore.chroma_repository import ChromaVectorStoreRepository
 from Backend.Web.Endpoints.diagnosis import create_blueprint as create_diagnosis_blueprint
 from Backend.Web.Endpoints.documents import create_blueprint as create_document_blueprint
@@ -65,6 +66,7 @@ def create_app(db_path: str = "db", pdf_dir: str = "pdf") -> Flask:
     # ---- US2: 多轮对话式故障诊断 ----
     session_repository = SessionRepositoryImpl()
     diagnosis_llm = DiagnosisLlmAdapter(llm=chat_provider.client)
+    fault_tree_skill = LlmFaultTreeSkill(llm=chat_provider.client, min_user_messages=2)
 
     create_session_use_case = CreateSessionUseCase(
         session_repository=session_repository,
@@ -75,6 +77,7 @@ def create_app(db_path: str = "db", pdf_dir: str = "pdf") -> Flask:
         session_repository=session_repository,
         diagnosis_llm=diagnosis_llm,
         retriever_factory=vector_store_repository,
+        fault_tree_skill=fault_tree_skill,
     )
     get_session_use_case = GetSessionUseCase(
         session_repository=session_repository,

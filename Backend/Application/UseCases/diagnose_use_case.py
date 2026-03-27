@@ -4,6 +4,7 @@
 意图识别 → 充分性评估 → 持久化。
 """
 from Backend.Application.Interfaces.diagnosis_llm_client import DiagnosisLlmClient
+from Backend.Application.Interfaces.fault_tree_skill import FaultTreeGenerationSkill
 from Backend.Application.Interfaces.retriever_repository import RetrieverFactory
 from Backend.Application.Interfaces.session_repository import SessionRepository
 from Backend.Domain.Common.Enums.message_role import MessageRole
@@ -16,10 +17,12 @@ class DiagnoseUseCase:
         session_repository: SessionRepository,
         diagnosis_llm: DiagnosisLlmClient,
         retriever_factory: RetrieverFactory,
+        fault_tree_skill: FaultTreeGenerationSkill,
     ):
         self._session_repo = session_repository
         self._llm = diagnosis_llm
         self._retriever = retriever_factory
+        self._fault_tree_skill = fault_tree_skill
 
     def execute(self, session_id: str, message: str) -> dict:
         if not message or not message.strip():
@@ -75,18 +78,35 @@ class DiagnoseUseCase:
         # 8. 充分性评估
         sufficient = self._llm.assess_sufficiency(history)
 
-        # 如果充分，修改回复内容
+        # 9. 如果充分，尝试用 Skill 生成故障树
+        fault_tree_data = None
         if sufficient:
-            reply["content"] += (
-                "\n\n根据目前收集的信息，我已经对故障原因有了较全面的了解。"
-                "建议现在生成故障树进行结构化分析。是否需要我为您生成故障树？"
-            )
-            reply["intent"] = "suggest_fault_tree"
+            fault_tree = self._fault_tree_skill.generate(session)
+            if fault_tree is not None:
+                session.link_fault_tree(fault_tree.id)
+                fault_tree_data = fault_tree.to_dict()
+                fault_tree_data["id"] = fault_tree.id
+                fault_tree_data["name"] = fault_tree.name
+                reply["content"] += (
+                    "\n\n根据目前收集的信息，我已经对故障原因有了较全面的了解，"
+                    "已为您生成故障树进行结构化分析。"
+                )
+                reply["intent"] = "fault_tree_generated"
+            else:
+                # Skill 信息不足，返回追问建议
+                missing = self._fault_tree_skill.get_missing_info(session)
+                if missing:
+                    reply["content"] += "\n\n" + "\n".join(missing)
+                reply["content"] += (
+                    "\n\n根据目前收集的信息，我已经对故障原因有了较全面的了解。"
+                    "建议现在生成故障树进行结构化分析。是否需要我为您生成故障树？"
+                )
+                reply["intent"] = "suggest_fault_tree"
 
-        # 9. 追加 assistant 回复
+        # 10. 追加 assistant 回复
         session.add_message(MessageRole.ASSISTANT, reply["content"])
 
-        # 10. 持久化
+        # 11. 持久化
         self._session_repo.save(session)
 
         # 收集 sources
@@ -102,6 +122,7 @@ class DiagnoseUseCase:
             },
             "sources": sources,
             "diagnosis_sufficient": sufficient,
+            "fault_tree": fault_tree_data,
         }
 
     def _retrieve_context(self, query: str) -> str:
