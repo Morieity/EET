@@ -12,6 +12,7 @@ from Backend.Infrastructure.document.pdf_loader import load_pdf
 from Backend.Infrastructure.document.text_splitter import build_text_splitter
 from Backend.Infrastructure.llm.deepseek_client import DeepSeekChatProvider
 from Backend.Infrastructure.llm.diagnosis_llm_adapter import DiagnosisLlmAdapter
+from Backend.Infrastructure.persistence.database import init_db
 from Backend.Infrastructure.persistence.session_repository import SessionRepositoryImpl
 from Backend.Infrastructure.vectorstore.chroma_repository import ChromaVectorStoreRepository
 from Backend.Web.Endpoints.diagnosis import create_blueprint as create_diagnosis_blueprint
@@ -22,6 +23,9 @@ from Backend.Web.Endpoints.pdfpost import create_blueprint as create_pdf_bluepri
 
 def create_app(db_path: str = "db", pdf_dir: str = "pdf") -> Flask:
     """组装应用依赖并返回已配置的 Flask 应用实例。"""
+    # 初始化数据库表
+    init_db()
+
     # 初始化 LLM 提供者、向量嵌入模型和文本分割器
     chat_provider = DeepSeekChatProvider()
     embedding = FastEmbedEmbeddings()
