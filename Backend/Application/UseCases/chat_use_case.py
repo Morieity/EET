@@ -1,10 +1,4 @@
-from typing import Protocol
-
-
-class ChatClient(Protocol):
-    def chat(self, query: str) -> str:
-        """将用户问题发送到模型后端并返回纯文本结果。"""
-        ...
+from Backend.Application.Interfaces.chat_repository import ChatClient
 
 
 class ChatUseCase:

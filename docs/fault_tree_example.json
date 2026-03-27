@@ -1,0 +1,110 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "event",
+      "data": {
+        "label": "发动机故障"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "event",
+      "data": {
+        "label": "Node 2"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "event",
+      "data": {
+        "label": "Node 3"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "event",
+      "data": {
+        "label": "Node 4"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "gate",
+      "data": {
+        "gateType": "AND"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "gate",
+      "data": {
+        "gateType": "OR"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "gate",
+      "data": {
+        "gateType": "AND"
+      }
+    },
+    {
+      "id": "n8",
+      "type": "event",
+      "data": {
+        "label": "第一排气管故障",
+        "remark": "发动机发生故障"
+      }
+    },
+    {
+      "id": "n9",
+      "type": "event",
+      "data": {
+        "label": "第二排气管故障"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "n1-n5",
+      "source": "n1",
+      "target": "n5"
+    },
+    {
+      "id": "n1-n6",
+      "source": "n1",
+      "target": "n6"
+    },
+    {
+      "id": "n1-n7",
+      "source": "n1",
+      "target": "n7"
+    },
+    {
+      "id": "n5-n3",
+      "source": "n5",
+      "target": "n3"
+    },
+    {
+      "id": "n5-n4",
+      "source": "n5",
+      "target": "n4"
+    },
+    {
+      "id": "n6-n2",
+      "source": "n6",
+      "target": "n2"
+    },
+    {
+      "id": "n7-n8",
+      "source": "n7",
+      "target": "n8"
+    },
+    {
+      "id": "n7-n9",
+      "source": "n7",
+      "target": "n9"
+    }
+  ]
+}

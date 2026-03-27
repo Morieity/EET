@@ -1,54 +1,58 @@
+"""UploadDocumentUseCase — 文档上传 + 去重 + 向量化入库。"""
 import os
-from typing import Dict, Any
-from werkzeug.datastructures import FileStorage
-from langchain_core.documents import Document
+from typing import Any, Dict
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from Backend.Application.Interfaces.pdf_repository import (
-    PdfLoader,
-    TextSplitter,
-    VectorStoreRepository,
-)
+from werkzeug.datastructures import FileStorage
+
+from Backend.Application.Interfaces.document_deduplicator import DocumentDeduplicator
+from Backend.Application.Interfaces.pdf_repository import PdfLoader, VectorStoreRepository
 
 
-class UploadPdfUseCase:
+class UploadDocumentUseCase:
     def __init__(
         self,
         pdf_dir: str,
         loader: PdfLoader,
         splitter: RecursiveCharacterTextSplitter,
         vector_store_repository: VectorStoreRepository,
+        deduplicator: DocumentDeduplicator,
     ):
-        """初始化上传依赖并确保目标目录存在。"""
         self.pdf_dir = pdf_dir
         self.loader = loader
         self.splitter = splitter
         self.vector_store_repository = vector_store_repository
+        self.deduplicator = deduplicator
         os.makedirs(self.pdf_dir, exist_ok=True)
 
     def execute(self, file: FileStorage) -> Dict[str, Any]:
-        """校验并保存上传文件，随后解析、切分并持久化 PDF 内容。"""
         if not file:
             raise ValueError("No file provided")
         if not file.filename:
             raise ValueError("File name is empty")
         if not file.filename.lower().endswith(".pdf"):
-            raise ValueError("File must be a PDF")
+            raise ValueError("Unsupported file format. Only PDF is supported.")
 
-        #具体解析流程
         file_name = file.filename
         save_path = os.path.join(self.pdf_dir, file_name)
         file.save(save_path)
 
-        # 读入文档并切割
         documents = self.loader(save_path)
         chunks = self.splitter.split_documents(documents)
+        total_chunks = len(chunks)
 
-        # 将切分后的文档片段持久化到向量库中，供后续检索使用
-        self.vector_store_repository.persist_documents(chunks)
+        # 三级去重
+        unique_chunks, deduplicated_count = self.deduplicator.deduplicate(chunks)
+
+        # 持久化到向量库
+        if unique_chunks:
+            self.vector_store_repository.persist_documents(unique_chunks)
 
         return {
-            "status": "Successfully Uploaded",
+            "status": "success",
             "filename": file_name,
-            "doc_len": len(documents),
-            "chunks": len(chunks),
+            "total_chunks": total_chunks,
+            "persisted_chunks": len(unique_chunks),
+            "deduplicated_chunks": deduplicated_count,
+            "skipped_chunks": 0,
         }

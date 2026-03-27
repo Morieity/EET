@@ -1,6 +1,9 @@
 # 忽略本地uv环境
 *.venv/
 
+# 忽略Python缓存
+__pycache__/
+
 # 忽略数据库缓存
 *db/*
 
