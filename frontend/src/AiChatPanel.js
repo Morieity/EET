@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Panel } from '@xyflow/react';
 import ReactMarkdown from 'react-markdown';
+import { Input, Button, Tag, Collapse, Empty, Spin } from 'antd';
+import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+
+const { TextArea } = Input;
 
 // 意图标签配置
 const INTENT_CONFIG = {
@@ -11,7 +14,6 @@ const INTENT_CONFIG = {
 };
 
 export default function AiChatPanel({ onFaultTreeGenerated }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。' }
   ]);
@@ -20,7 +22,6 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
   const [sessionId, setSessionId] = useState(null);
   const [sessionStatus, setSessionStatus] = useState(null);
   const [diagnosisSufficient, setDiagnosisSufficient] = useState(false);
-  const [expandedSources, setExpandedSources] = useState({});
   const messagesEndRef = useRef(null);
 
   // 每次消息更新后自动滚动到底部
@@ -115,14 +116,9 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
     setSessionId(null);
     setSessionStatus(null);
     setDiagnosisSufficient(false);
-    setExpandedSources({});
     setMessages([
       { role: 'assistant', content: '新会话已创建。请描述您遇到的设备故障现象，我会帮您分析定位问题。' },
     ]);
-  };
-
-  const toggleSources = (index) => {
-    setExpandedSources((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
   const handleKeyDown = (e) => {
@@ -132,324 +128,190 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
     }
   };
 
-  // 渲染意图标签
-  const renderIntentTag = (intent) => {
-    if (!intent) return null;
-    const config = INTENT_CONFIG[intent] || { label: intent, color: '#999' };
-    return (
-      <span style={{
-        display: 'inline-block',
-        fontSize: '11px',
-        padding: '1px 6px',
-        borderRadius: '4px',
-        background: config.color,
-        color: 'white',
-        marginBottom: '4px',
-      }}>
-        {config.label}
-      </span>
-    );
-  };
-
-  // 渲染知识来源折叠区
   const renderSources = (sources, index) => {
     if (!sources || sources.length === 0) return null;
-    const isExpanded = expandedSources[index];
-    return (
-      <div style={{ marginTop: '6px' }}>
-        <button
-          onClick={() => toggleSources(index)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#40b586',
-            cursor: 'pointer',
-            fontSize: '12px',
-            padding: 0,
-            textDecoration: 'underline',
-          }}
-        >
-          {isExpanded ? '▼ 收起来源' : '▶ 查看知识来源'} ({sources.length})
-        </button>
-        {isExpanded && (
-          <div style={{
-            marginTop: '4px',
-            padding: '6px 8px',
-            background: '#f5f5f5',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: '#666',
-            maxHeight: '120px',
-            overflowY: 'auto',
-          }}>
-            {sources.map((src, i) => (
-              <div key={i} style={{ marginBottom: i < sources.length - 1 ? '6px' : 0, borderBottom: i < sources.length - 1 ? '1px dashed #ddd' : 'none', paddingBottom: '4px' }}>
-                <div style={{ fontWeight: 'bold', color: '#555' }}>📄 {src.source}</div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.3' }}>
-                  {src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    const items = [{
+      key: `src-${index}`,
+      label: <span style={{ fontSize: 12, color: '#40b586' }}>查看知识来源 ({sources.length})</span>,
+      children: (
+        <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+          {sources.map((src, i) => (
+            <div key={i} style={{ marginBottom: 6, paddingBottom: 4, borderBottom: i < sources.length - 1 ? '1px dashed #eee' : 'none', fontSize: 12, color: '#888' }}>
+              <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.source}</div>
+              <div>{src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}</div>
+            </div>
+          ))}
+        </div>
+      ),
+    }];
+    return <Collapse ghost size="small" items={items} style={{ marginTop: 4 }} />;
   };
 
   return (
-    <Panel position="bottom-right" style={{ marginBottom: '180px', marginRight: '10px' }}>
-      {/* 悬浮打开按钮（收起状态） */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: '#40b586',
-            color: 'white',
-            border: 'none',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-            cursor: 'pointer',
-            fontSize: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'transform 0.2s',
-          }}
-          title="打开故障诊断助手"
-        >
-          🤖
-        </button>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fafbfc' }}>
+      {/* 顶部标题栏 */}
+      <div style={{
+        padding: '12px 16px',
+        borderBottom: '1px solid #f0f0f0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#fff',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <RobotOutlined style={{ fontSize: 18, color: '#40b586' }} />
+          <span style={{ fontWeight: 600, fontSize: 15, color: '#1a1a2e' }}>故障诊断助手</span>
+        </div>
+        {sessionId && (
+          <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleNewSession}>
+            新会话
+          </Button>
+        )}
+      </div>
 
-      {/* 展开的聊天面板 */}
-      {isOpen && (
+      {/* 会话状态栏 */}
+      {sessionId && (
         <div style={{
-          width: '360px',
-          height: '620px',
-          background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          padding: '6px 16px',
+          borderBottom: '1px solid #f0f0f0',
           display: 'flex',
-          flexDirection: 'column',
-          border: '1px solid #eee',
-          overflow: 'hidden'
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: 12,
+          color: '#999',
+          background: '#fafbfc',
         }}>
-          {/* 标题栏 */}
-          <div style={{
-            background: '#40b586',
-            color: 'white',
-            padding: '10px 15px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}>
-            <span>🔧 故障诊断助手</span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {sessionId && (
-                <button
-                  onClick={handleNewSession}
-                  style={{
-                    background: 'rgba(255,255,255,0.25)',
-                    border: '1px solid rgba(255,255,255,0.5)',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    borderRadius: '4px',
-                    padding: '2px 8px',
-                  }}
-                  title="开始新的诊断会话"
-                >
-                  + 新会话
-                </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '18px' }}
-                title="收起聊天面板"
-              >
-                ▼
-              </button>
-            </div>
-          </div>
-
-          {/* 会话状态栏 */}
-          {sessionId && (
-            <div style={{
-              padding: '5px 15px',
-              background: '#f0faf5',
-              borderBottom: '1px solid #e0e0e0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '12px',
-              color: '#666',
-            }}>
-              <span>会话: {sessionId.slice(0, 8)}...</span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {diagnosisSufficient && (
-                  <span style={{
-                    color: '#3498db',
-                    fontWeight: 'bold',
-                    fontSize: '11px',
-                    padding: '1px 6px',
-                    background: '#eaf4fd',
-                    borderRadius: '4px',
-                  }}>
-                    ✅ 信息充足
-                  </span>
-                )}
-                <span style={{
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  background: sessionStatus === 'in_progress' ? '#e8f5e9' : '#fff3e0',
-                  color: sessionStatus === 'in_progress' ? '#2e7d32' : '#e65100',
-                }}>
-                  {sessionStatus === 'in_progress' ? '诊断中' : sessionStatus === 'tree_generated' ? '已生成故障树' : sessionStatus || ''}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* 聊天记录滚动区 */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '15px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            background: '#fafafa'
-          }}>
-            {messages.map((msg, index) => (
-              <div key={index} style={{
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '85%',
-              }}>
-                {/* 意图标签（仅 assistant 消息显示） */}
-                {msg.role === 'assistant' && msg.intent && (
-                  <div style={{ marginBottom: '2px' }}>{renderIntentTag(msg.intent)}</div>
-                )}
-                <div style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  lineHeight: '1.4',
-                  background: msg.role === 'user' ? '#e0f7fa' : '#ffffff',
-                  color: msg.role === 'user' ? '#006064' : '#333',
-                  border: msg.role === 'user' ? 'none' : '1px solid #ddd',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  wordBreak: 'break-word',
-                }}>
-                  {msg.role === 'assistant' ? (
-                    <div className="markdown-body" style={{ fontSize: '14px', lineHeight: '1.6' }}>
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p style={{ margin: '4px 0' }}>{children}</p>,
-                          ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
-                          ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
-                          li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
-                          strong: ({ children }) => <strong style={{ color: '#1a1a1a' }}>{children}</strong>,
-                          h1: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '16px', margin: '6px 0 4px' }}>{children}</div>,
-                          h2: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '15px', margin: '6px 0 4px' }}>{children}</div>,
-                          h3: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '14px', margin: '4px 0 2px' }}>{children}</div>,
-                          code: ({ children }) => <code style={{ background: '#f0f0f0', padding: '1px 4px', borderRadius: '3px', fontSize: '13px' }}>{children}</code>,
-                          hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '8px 0' }} />,
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
-                  )}
-                </div>
-                {/* 知识来源折叠区 */}
-                {msg.role === 'assistant' && renderSources(msg.sources, index)}
-                {/* 故障树加载按钮 */}
-                {msg.role === 'assistant' && msg.faultTree && onFaultTreeGenerated && (
-                  <button
-                    onClick={() => onFaultTreeGenerated(msg.faultTree)}
-                    style={{
-                      marginTop: '6px',
-                      padding: '6px 12px',
-                      background: '#8e44ad',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      width: '100%',
-                    }}
-                  >
-                    🌲 加载故障树到画布
-                  </button>
-                )}
-              </div>
-            ))}
-            {/* 当处于加载状态时，展示 "思考中..." */}
-            {isLoading && (
-              <div style={{
-                alignSelf: 'flex-start',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                background: '#ffffff',
-                color: '#888',
-                border: '1px solid #eee',
-                fontStyle: 'italic'
-              }}>
-                诊断分析中... 🤔
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* 底部输入区 */}
-          <div style={{ padding: '10px', background: 'white', borderTop: '1px solid #eee', display: 'flex', gap: '8px' }}>
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              placeholder={isLoading ? 'AI 正在分析，请稍等...' : '描述设备故障现象...'}
-              style={{
-                flex: 1,
-                resize: 'none',
-                height: '40px',
-                padding: '8px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                fontSize: '13px',
-                outline: 'none',
-                fontFamily: 'inherit',
-                opacity: isLoading ? 0.6 : 1
-              }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLoading || !inputText.trim()}
-              style={{
-                background: '#40b586',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '0 15px',
-                cursor: (isLoading || !inputText.trim()) ? 'not-allowed' : 'pointer',
-                fontWeight: 'bold',
-                transition: 'opacity 0.2s',
-                opacity: (isLoading || !inputText.trim()) ? 0.6 : 1
-              }}
-            >
-              发送
-            </button>
+          <span>#{sessionId.slice(0, 8)}</span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {diagnosisSufficient && <Tag color="blue" style={{ margin: 0, fontSize: 11 }}>信息充足</Tag>}
+            <Tag color={sessionStatus === 'in_progress' ? 'green' : 'orange'} style={{ margin: 0, fontSize: 11 }}>
+              {sessionStatus === 'in_progress' ? '诊断中' : sessionStatus === 'tree_generated' ? '已生成' : sessionStatus || ''}
+            </Tag>
           </div>
         </div>
       )}
-    </Panel>
+
+      {/* 聊天记录 */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}>
+        {messages.length === 0 && (
+          <Empty description="开始一段故障诊断对话" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        )}
+        {messages.map((msg, index) => (
+          <div key={index} style={{
+            display: 'flex',
+            gap: 8,
+            flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+          }}>
+            {/* 头像 */}
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: msg.role === 'user' ? '#e0f7fa' : '#f0faf5',
+              color: msg.role === 'user' ? '#006064' : '#40b586',
+              fontSize: 14,
+            }}>
+              {msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+            </div>
+            <div style={{ maxWidth: '85%', minWidth: 0 }}>
+              {/* 意图标签 */}
+              {msg.role === 'assistant' && msg.intent && (
+                <div style={{ marginBottom: 3 }}>
+                  <Tag color={INTENT_CONFIG[msg.intent]?.color || '#999'} style={{ fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>
+                    {INTENT_CONFIG[msg.intent]?.label || msg.intent}
+                  </Tag>
+                </div>
+              )}
+              {/* 消息气泡 */}
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: msg.role === 'user' ? '12px 2px 12px 12px' : '2px 12px 12px 12px',
+                fontSize: 13,
+                lineHeight: 1.6,
+                background: msg.role === 'user' ? '#e0f7fa' : '#fff',
+                color: msg.role === 'user' ? '#006064' : '#333',
+                border: msg.role === 'user' ? 'none' : '1px solid #eee',
+                wordBreak: 'break-word',
+              }}>
+                {msg.role === 'assistant' ? (
+                  <div className="markdown-body">
+                    <ReactMarkdown components={{
+                      p: ({ children }) => <p style={{ margin: '3px 0' }}>{children}</p>,
+                      ul: ({ children }) => <ul style={{ margin: '3px 0', paddingLeft: 18 }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ margin: '3px 0', paddingLeft: 18 }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ margin: '1px 0' }}>{children}</li>,
+                      strong: ({ children }) => <strong style={{ color: '#1a1a1a' }}>{children}</strong>,
+                      h3: ({ children }) => <div style={{ fontWeight: 600, fontSize: 14, margin: '4px 0 2px' }}>{children}</div>,
+                      code: ({ children }) => <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>{children}</code>,
+                      hr: () => <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '6px 0' }} />,
+                    }}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                )}
+              </div>
+              {/* 知识来源 */}
+              {msg.role === 'assistant' && renderSources(msg.sources, index)}
+              {/* 故障树加载按钮 */}
+              {msg.role === 'assistant' && msg.faultTree && onFaultTreeGenerated && (
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => onFaultTreeGenerated(msg.faultTree)}
+                  style={{ marginTop: 6, background: '#8e44ad', borderColor: '#8e44ad', borderRadius: 6, width: '100%', fontWeight: 600 }}
+                >
+                  🌲 加载故障树到画布
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: '#f0faf5', color: '#40b586', fontSize: 14,
+            }}>
+              <RobotOutlined />
+            </div>
+            <div style={{ padding: '10px 14px', borderRadius: '2px 12px 12px 12px', background: '#fff', border: '1px solid #eee', color: '#aaa', fontSize: 13 }}>
+              <Spin size="small" /> <span style={{ marginLeft: 6 }}>诊断分析中...</span>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* 底部输入区 */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', background: '#fff' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <TextArea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            placeholder={isLoading ? 'AI 正在分析，请稍等...' : '描述设备故障现象...'}
+            autoSize={{ minRows: 1, maxRows: 3 }}
+            style={{ borderRadius: 8, fontSize: 13 }}
+          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            disabled={isLoading || !inputText.trim()}
+            style={{ background: '#40b586', borderColor: '#40b586', borderRadius: 8, height: 'auto' }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
