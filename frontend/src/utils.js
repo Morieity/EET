@@ -78,3 +78,53 @@ export const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
   return { nodes: newNodes, edges };
 };
+
+/**
+ * 将后端故障树数据转换为 React Flow 节点和边
+ * 后端格式: { nodes: [{id, type:"event"/"gate", data:{label, remark, gateType}}], edges: [{id, source, target}] }
+ * React Flow 格式: nodes 包含 type:"textUpdater"/"gate"，edges 包含 type:"smoothstep"
+ */
+export const convertFaultTreeToFlow = (faultTree) => {
+  const rawNodes = faultTree.nodes || [];
+  const rawEdges = faultTree.edges || [];
+
+  // 判断哪些节点没有入边（根节点）
+  const hasIncoming = new Set(rawEdges.map(e => e.target));
+
+  const nodes = rawNodes.map((n, index) => {
+    if (n.type === 'gate') {
+      return {
+        id: n.id,
+        type: 'gate',
+        position: { x: 0, y: index * 100 },
+        data: {
+          gateType: n.data?.gateType || 'OR',
+        },
+      };
+    }
+    // event node → textUpdater
+    const isRoot = !hasIncoming.has(n.id);
+    return {
+      id: n.id,
+      type: 'textUpdater',
+      position: { x: 0, y: index * 100 },
+      data: {
+        label: n.data?.label || n.id,
+        remark: n.data?.remark || '',
+      },
+      style: {
+        backgroundColor: isRoot ? '#e74c3c' : '#40b586',
+        color: 'white',
+      },
+    };
+  });
+
+  const edges = rawEdges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    type: 'smoothstep',
+  }));
+
+  return { nodes, edges };
+};

@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Panel } from '@xyflow/react';
+import ReactMarkdown from 'react-markdown';
 
 // 意图标签配置
 const INTENT_CONFIG = {
   fault_diagnosis: { label: '故障诊断', color: '#40b586' },
   off_topic: { label: '非诊断话题', color: '#e67e22' },
   suggest_fault_tree: { label: '建议生成故障树', color: '#3498db' },
+  fault_tree_generated: { label: '✅ 已生成故障树', color: '#8e44ad' },
 };
 
-export default function AiChatPanel() {
+export default function AiChatPanel({ onFaultTreeGenerated }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。' }
@@ -84,6 +86,8 @@ export default function AiChatPanel() {
         result = await sendMessage(sessionId, userMessage);
         setSessionStatus(result.status);
         setDiagnosisSufficient(result.diagnosis_sufficient || false);
+
+        const faultTree = result.fault_tree || null;
         setMessages((prev) => [
           ...prev,
           {
@@ -91,6 +95,7 @@ export default function AiChatPanel() {
             content: result.reply.content,
             intent: result.reply.intent,
             sources: result.sources,
+            faultTree,
           },
         ]);
       }
@@ -338,12 +343,52 @@ export default function AiChatPanel() {
                   border: msg.role === 'user' ? 'none' : '1px solid #ddd',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                   wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap'
                 }}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                    <div className="markdown-body" style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p style={{ margin: '4px 0' }}>{children}</p>,
+                          ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
+                          ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
+                          li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
+                          strong: ({ children }) => <strong style={{ color: '#1a1a1a' }}>{children}</strong>,
+                          h1: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '16px', margin: '6px 0 4px' }}>{children}</div>,
+                          h2: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '15px', margin: '6px 0 4px' }}>{children}</div>,
+                          h3: ({ children }) => <div style={{ fontWeight: 'bold', fontSize: '14px', margin: '4px 0 2px' }}>{children}</div>,
+                          code: ({ children }) => <code style={{ background: '#f0f0f0', padding: '1px 4px', borderRadius: '3px', fontSize: '13px' }}>{children}</code>,
+                          hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '8px 0' }} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                  )}
                 </div>
                 {/* 知识来源折叠区 */}
                 {msg.role === 'assistant' && renderSources(msg.sources, index)}
+                {/* 故障树加载按钮 */}
+                {msg.role === 'assistant' && msg.faultTree && onFaultTreeGenerated && (
+                  <button
+                    onClick={() => onFaultTreeGenerated(msg.faultTree)}
+                    style={{
+                      marginTop: '6px',
+                      padding: '6px 12px',
+                      background: '#8e44ad',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      width: '100%',
+                    }}
+                  >
+                    🌲 加载故障树到画布
+                  </button>
+                )}
               </div>
             ))}
             {/* 当处于加载状态时，展示 "思考中..." */}

@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, Controls, Background, MiniMap, Panel, useReactFlow } from '@xyflow/react';
+import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, Controls, Background, Panel, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import AiChatPanel from './AiChatPanel';
+import DocumentUploadPanel from './DocumentUploadPanel';
 import TextUpdaterNode from './TextUpdaterNode';
 import GateNode from './GateNode';
 import { initialNodes, initialEdges } from './initialElements';
-import { getId, nodeColor, getLayoutedElements } from './utils';
+import { getId, getLayoutedElements, convertFaultTreeToFlow } from './utils';
 
 const nodeTypes = { 
   textUpdater: TextUpdaterNode,
@@ -19,9 +20,20 @@ export default function Flow() {
   const [edges, setEdges] = useState(initialEdges);
   const [variant, setVariant] = useState('cross');
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [faultTreeId, setFaultTreeId] = useState(null);
   
   const fileInputRef = useRef(null);
   const { screenToFlowPosition, toObject, setViewport, fitView } = useReactFlow();
+
+  // 接收 AI 诊断生成的故障树并渲染到画布
+  const handleFaultTreeGenerated = useCallback((faultTree) => {
+    const { nodes: ftNodes, edges: ftEdges } = convertFaultTreeToFlow(faultTree);
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(ftNodes, ftEdges, 'TB');
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+    setFaultTreeId(faultTree.id || null);
+    window.requestAnimationFrame(() => { fitView(); });
+  }, [setNodes, setEdges, fitView]);
 
   const onLayout = useCallback(
     (direction) => {
@@ -101,29 +113,55 @@ export default function Flow() {
   }, [toObject]);
 
   const onSaveToServer = useCallback(async () => {
-    // 1. 获取画板数据
     const flow = toObject();
-    
-    // 2. 模拟发送给后端的行为
-    console.log('准备保存到后端的数据:', flow);
-    alert('已在控制台打印将被发送到后端的 JSON 数据！\n\n您可以将此处的逻辑替换为真实的 fetch / axios 请求。');
 
-    // 下面是一个真实发往后端的代码模板：
-    /*
-    try {
-      const response = await fetch('/api/flow/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(flow)
-      });
-      if (response.ok) {
-        alert('已成功保存到数据库！');
+    // 将 React Flow 节点/边转换为后端故障树格式
+    const treeNodes = flow.nodes.map((n) => {
+      const d = { ...n.data };
+      // 移除前端专用字段
+      delete d.label;
+      delete d.remark;
+      delete d.gateType;
+      if (n.type === 'textUpdater' || n.type === 'event') {
+        return { id: n.id, type: 'event', data: { label: n.data.label || '', ...(n.data.remark ? { remark: n.data.remark } : {}) } };
       }
-    } catch (error) {
-      console.error('保存失败:', error);
+      if (n.type === 'gate') {
+        return { id: n.id, type: 'gate', data: { gateType: n.data.gateType || 'OR' } };
+      }
+      return { id: n.id, type: n.type, data: n.data };
+    });
+
+    const treeEdges = flow.edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+    }));
+
+    const payload = { nodes: treeNodes, edges: treeEdges };
+
+    if (faultTreeId) {
+      // 保存到已有故障树
+      try {
+        const resp = await fetch(`/api/fault-trees/${encodeURIComponent(faultTreeId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (resp.ok) {
+          alert('故障树已保存到服务器！');
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          alert(`保存失败: ${err.message || resp.status}`);
+        }
+      } catch (error) {
+        alert(`保存失败: ${error.message}`);
+      }
+    } else {
+      // 没有关联故障树时，导出到控制台并提示
+      console.log('故障树数据 (无关联ID):', payload);
+      alert('当前画布未关联诊断会话的故障树。\n请先通过 AI 诊断生成故障树，然后再保存。');
     }
-    */
-  }, [toObject]);
+  }, [toObject, faultTreeId]);
 
   const onNodesChange = useCallback(
     (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
@@ -279,7 +317,7 @@ export default function Flow() {
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ marginBottom: '8px', display: 'flex', gap: '8px' }}>
+                    <div style={{ marginBottom: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <button 
                         onClick={() => onAddGate('AND')} 
                         style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
@@ -291,6 +329,24 @@ export default function Flow() {
                         style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
                       >
                        ➕ ≥1 或门
+                      </button>
+                      <button 
+                        onClick={() => onAddGate('XOR')} 
+                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                      >
+                       ➕ =1 异或门
+                      </button>
+                      <button 
+                        onClick={() => onAddGate('INHIBIT')} 
+                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                      >
+                       ➕ ⊘ 禁止门
+                      </button>
+                      <button 
+                        onClick={() => onAddGate('PRIORITY_AND')} 
+                        style={{ padding: '4px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center' }}
+                      >
+                       ➕ P&amp; 优先与门
                       </button>
                     </div>
                     <label>
@@ -362,9 +418,11 @@ export default function Flow() {
           </button>
         </Panel>
 
-        <AiChatPanel />
+        <AiChatPanel onFaultTreeGenerated={handleFaultTreeGenerated} />
 
-        <MiniMap nodeColor={nodeColor} />
+        <DocumentUploadPanel />
+
+
       </ReactFlow>
     </>
   );
