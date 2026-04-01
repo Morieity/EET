@@ -8,3 +8,6 @@
 *.github
 *.vscode
 *.specify
+
+#忽略pycache
+__pycache__/
