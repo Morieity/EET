@@ -11,3 +11,14 @@
 
 #忽略pycache
 __pycache__/
+
+# 忽略前端构建产物和依赖
+frontend/build/
+frontend/node_modules/
+
+# 忽略上传的 PDF 文件
+pdf/
+
+# 忽略 Python 字节码
+*.pyc
+*.pyo
