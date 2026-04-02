@@ -28,3 +28,16 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
         results = collection.get(where={"file_name": file_name})
         if results["ids"]:
             collection.delete(ids=results["ids"])
+
+    def search(self, query: str, k: int = 5, score_threshold: float = 0.1) -> list[dict]:
+        store = self._get_store()
+        results = store.similarity_search_with_relevance_scores(query, k=k)
+        return [
+            {
+                "file_name": doc.metadata.get("file_name", "Unknown"),
+                "page_content": doc.page_content,
+                "score": score,
+            }
+            for doc, score in results
+            if score >= score_threshold
+        ]
