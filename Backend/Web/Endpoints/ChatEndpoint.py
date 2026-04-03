@@ -1,10 +1,12 @@
 import json
+import logging
 from flask import Blueprint, request, Response
 from Backend.Application.UseCases.ChatUseCase import ChatUseCase
 from Backend.Application.UseCases.DeleteConversationUseCase import DeleteConversationUseCase
 from Backend.Application.Interfaces.IConversationRepository import IConversationRepository
 
 chat_bp = Blueprint("chat", __name__)
+logger = logging.getLogger(__name__)
 
 
 def create_chat_blueprint(
@@ -33,11 +35,23 @@ def create_chat_blueprint(
         conversation_id = data.get("conversation_id")
 
         def event_stream():
-            for event in chat_use_case.execute(question, conversation_id):
-                event_type = event.pop("type")
-                yield f"event: {event_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            try:
+                for event in chat_use_case.execute(question, conversation_id):
+                    event_type = event.pop("type")
+                    yield f"event: {event_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            except Exception:
+                logger.exception("Unexpected error in SSE stream")
+                error_data = json.dumps({"message": "服务器内部错误"}, ensure_ascii=False)
+                yield f"event: error\ndata: {error_data}\n\n"
 
-        return Response(event_stream(), mimetype="text/event-stream")
+        return Response(
+            event_stream(),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @chat_bp.route("/api/conversations", methods=["GET"])
     def list_conversations():

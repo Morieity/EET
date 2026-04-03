@@ -35,6 +35,39 @@ CREATE TABLE IF NOT EXISTS chat_rounds (
 );
 """
 
+_CREATE_FAULT_TREES_SQL = """
+CREATE TABLE IF NOT EXISTS fault_trees (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    conversation_id TEXT,
+    created_at TEXT NOT NULL
+);
+"""
+
+_CREATE_FAULT_TREE_NODES_SQL = """
+CREATE TABLE IF NOT EXISTS fault_tree_nodes (
+    id TEXT NOT NULL,
+    tree_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    node_type TEXT NOT NULL,
+    gate_type TEXT,
+    remark TEXT DEFAULT '',
+    PRIMARY KEY (id, tree_id),
+    FOREIGN KEY (tree_id) REFERENCES fault_trees(id)
+);
+"""
+
+_CREATE_FAULT_TREE_EDGES_SQL = """
+CREATE TABLE IF NOT EXISTS fault_tree_edges (
+    id TEXT NOT NULL,
+    tree_id TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    PRIMARY KEY (id, tree_id),
+    FOREIGN KEY (tree_id) REFERENCES fault_trees(id)
+);
+"""
+
 _lock = threading.Lock()
 
 
@@ -55,6 +88,9 @@ def init_db() -> None:
             conn.execute(_CREATE_TABLE_SQL)
             conn.execute(_CREATE_CONVERSATIONS_SQL)
             conn.execute(_CREATE_CHAT_ROUNDS_SQL)
+            conn.execute(_CREATE_FAULT_TREES_SQL)
+            conn.execute(_CREATE_FAULT_TREE_NODES_SQL)
+            conn.execute(_CREATE_FAULT_TREE_EDGES_SQL)
             conn.commit()
     finally:
         conn.close()

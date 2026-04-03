@@ -220,6 +220,109 @@ def test_error_empty_question():
     assert response.status_code == 400
 
 
+def test_error_whitespace_question():
+    """测试纯空白问题"""
+    print("\n" + "="*60)
+    print("CHAT TEST 6b: 错误处理 - 纯空白问题")
+    print("="*60)
+
+    response = requests.post(
+        f"{BASE_URL}/api/chat",
+        json={"question": "   "},
+        timeout=10
+    )
+
+    print(f"[✓] 响应状态: {response.status_code}")
+    print(f"[✓] {response.json()}")
+    assert response.status_code == 400
+
+
+def test_error_missing_question():
+    """测试缺少 question 字段"""
+    print("\n" + "="*60)
+    print("CHAT TEST 6c: 错误处理 - 缺少 question 字段")
+    print("="*60)
+
+    response = requests.post(
+        f"{BASE_URL}/api/chat",
+        json={},
+        timeout=10
+    )
+
+    print(f"[✓] 响应状态: {response.status_code}")
+    print(f"[✓] {response.json()}")
+    assert response.status_code == 400
+
+
+def test_error_invalid_json():
+    """测试无效 JSON 请求"""
+    print("\n" + "="*60)
+    print("CHAT TEST 6d: 错误处理 - 无效 JSON")
+    print("="*60)
+
+    response = requests.post(
+        f"{BASE_URL}/api/chat",
+        data="not json",
+        headers={"Content-Type": "application/json"},
+        timeout=10
+    )
+
+    print(f"[✓] 响应状态: {response.status_code}")
+    # Flask 的 get_json(silent=True) 返回 None，所以 question 为空
+    assert response.status_code == 400
+
+
+def test_error_chat_nonexistent_conversation_sse():
+    """测试使用不存在的 conversation_id 聊天（SSE 错误事件）"""
+    print("\n" + "="*60)
+    print("CHAT TEST 6e: 错误处理 - SSE 不存在的 conversation_id")
+    print("="*60)
+
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    response = requests.post(
+        f"{BASE_URL}/api/chat",
+        json={"question": "测试", "conversation_id": fake_id},
+        stream=True,
+        timeout=30
+    )
+
+    got_error = False
+    for event_type, data in parse_sse_stream(response):
+        if event_type == "error":
+            print(f"[✓ error] {data.get('message')}")
+            got_error = True
+
+    assert got_error, "应在 SSE 流中收到 error 事件"
+
+
+def test_sse_response_headers():
+    """测试 SSE 响应头"""
+    print("\n" + "="*60)
+    print("CHAT TEST 6f: SSE 响应头验证")
+    print("="*60)
+
+    payload = {"question": "你好"}
+    response = requests.post(
+        f"{BASE_URL}/api/chat",
+        json=payload,
+        stream=True,
+        timeout=60
+    )
+
+    content_type = response.headers.get("Content-Type", "")
+    cache_control = response.headers.get("Cache-Control", "")
+
+    print(f"[✓] Content-Type: {content_type}")
+    print(f"[✓] Cache-Control: {cache_control}")
+
+    assert "text/event-stream" in content_type, "Content-Type 应为 text/event-stream"
+    assert "no-cache" in cache_control, "Cache-Control 应包含 no-cache"
+
+    # 消费流以完成请求
+    for _ in parse_sse_stream(response):
+        pass
+
+
 def test_error_nonexistent_conversation():
     """测试不存在的对话"""
     print("\n" + "="*60)
@@ -266,6 +369,11 @@ def main():
         ("删除对话", lambda: test_delete_conversation(conv_id)),
         ("验证删除", lambda: test_verify_deletion(conv_id)),
         ("空问题", lambda: test_error_empty_question()),
+        ("纯空白问题", lambda: test_error_whitespace_question()),
+        ("缺少question", lambda: test_error_missing_question()),
+        ("无效JSON", lambda: test_error_invalid_json()),
+        ("SSE不存在对话", lambda: test_error_chat_nonexistent_conversation_sse()),
+        ("SSE响应头", lambda: test_sse_response_headers()),
         ("不存在对话", lambda: test_error_nonexistent_conversation()),
         ("删不存在对话", lambda: test_error_delete_nonexistent()),
     ]
