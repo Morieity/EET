@@ -1,5 +1,6 @@
 import re
 import logging
+from difflib import SequenceMatcher
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
@@ -11,6 +12,15 @@ from Backend.Application.Interfaces.IDocumentProcessor import IDocumentProcessor
 from Backend.Domain.Common.Enums.FileType import FileType
 
 logger = logging.getLogger(__name__)
+
+# 控制字符正则：匹配除 \n \r \t 之外的所有控制字符和 Unicode 私有区符号
+_RE_CONTROL_CHARS = re.compile(
+    r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\uf000-\uf0ff]'
+)
+
+_MIN_CHUNK_LENGTH = 20
+_NEAR_DEDUP_THRESHOLD = 0.9
+_NEAR_DEDUP_WINDOW = 5
 
 
 _RE_HEADING_L1 = re.compile(
@@ -74,8 +84,15 @@ class DocumentProcessorPro(IDocumentProcessor):
                     self._refine_block(heading, body, doc.metadata)
                 )
 
+        # ── 后处理管线：清洗 → 过滤 → 精确去重 → 近似去重 ──
+        all_chunks = self._clean(all_chunks)
+        all_chunks = self._filter_noise(all_chunks)
+        all_chunks = self._deduplicate(all_chunks)
+        all_chunks = self._near_deduplicate(all_chunks)
+
         logger.info(
-            "DocumentProcessorPro: %s → %d chunks", file_path, len(all_chunks)
+            "DocumentProcessorPro: %s → %d chunks (after post-processing)",
+            file_path, len(all_chunks),
         )
         return all_chunks
 
@@ -130,6 +147,52 @@ class DocumentProcessorPro(IDocumentProcessor):
                 doc.metadata["heading"] = heading
         return sub_docs
 
+    # 数据清洗与去重 
+
+    @staticmethod
+    def _clean(chunks: list[Document]) -> list[Document]:
+        """文本清洗：去除控制字符、合并多余空行、清理行首尾空格。"""
+        for doc in chunks:
+            text = doc.page_content
+            text = _RE_CONTROL_CHARS.sub('', text)
+            text = re.sub(r'\n{3,}', '\n\n', text)
+            text = '\n'.join(line.strip() for line in text.splitlines())
+            doc.page_content = text.strip()
+        return chunks
+
+    @staticmethod
+    def _filter_noise(chunks: list[Document]) -> list[Document]:
+        """过滤过短的噪音块。"""
+        return [doc for doc in chunks if len(doc.page_content.strip()) >= _MIN_CHUNK_LENGTH]
+
+    @staticmethod
+    def _deduplicate(chunks: list[Document]) -> list[Document]:
+        """精确去重：基于去空白指纹。"""
+        seen: set[str] = set()
+        unique: list[Document] = []
+        for doc in chunks:
+            fingerprint = re.sub(r'\s+', '', doc.page_content)
+            if fingerprint not in seen:
+                seen.add(fingerprint)
+                unique.append(doc)
+        return unique
+
+    @staticmethod
+    def _near_deduplicate(chunks: list[Document]) -> list[Document]:
+        """近似去重：与最近窗口内的块比较相似度，超过阈值则丢弃。"""
+        unique: list[Document] = []
+        for doc in chunks:
+            is_dup = False
+            for existing in unique[-_NEAR_DEDUP_WINDOW:]:
+                ratio = SequenceMatcher(
+                    None, doc.page_content, existing.page_content
+                ).ratio()
+                if ratio >= _NEAR_DEDUP_THRESHOLD:
+                    is_dup = True
+                    break
+            if not is_dup:
+                unique.append(doc)
+        return unique
 
     @staticmethod
     def _get_loader(file_path: str, file_type: FileType):
