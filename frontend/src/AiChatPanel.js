@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import { Input, Button, Tag, Collapse, Empty, Spin } from 'antd';
 import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
@@ -13,16 +14,41 @@ const INTENT_CONFIG = {
   fault_tree_generated: { label: '✅ 已生成故障树', color: '#8e44ad' },
 };
 
-export default function AiChatPanel({ onFaultTreeGenerated }) {
+export default function AiChatPanel({ onFaultTreeGenerated, initialConversationId }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。' }
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
-  const [sessionStatus, setSessionStatus] = useState(null);
-  const [diagnosisSufficient, setDiagnosisSufficient] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
+  // 如果传入了初始会话 ID，挂载时加载历史记录
+  useEffect(() => {
+    if (initialConversationId) {
+      loadConversation(initialConversationId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 读取历史对话并恢复消息列表
+  const loadConversation = async (convId) => {
+    try {
+      const resp = await fetch(`/api/conversations/${encodeURIComponent(convId)}`);
+      if (!resp.ok) return;
+      const conv = await resp.json();
+      const msgs = [{ role: 'assistant', content: `已恢复对话「${conv.name}」，可继续提问。` }];
+      for (const round of (conv.rounds || [])) {
+        msgs.push({ role: 'user', content: round.question });
+        const sources = Array.isArray(round.sources) ? round.sources : [];
+        msgs.push({ role: 'assistant', content: round.answer, sources });
+      }
+      setConversationId(convId);
+      setMessages(msgs);
+    } catch (e) {
+      console.error('加载历史对话失败', e);
+    }
+  };
 
   // 每次消息更新后自动滚动到底部
   useEffect(() => {
@@ -31,34 +57,6 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
     }
   }, [messages]);
 
-  // 创建新会话（首条消息）
-  const createSession = async (userMessage) => {
-    const response = await fetch('/api/diagnosis/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initial_message: userMessage }),
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || `创建会话失败，状态码: ${response.status}`);
-    }
-    return response.json();
-  };
-
-  // 发送后续消息
-  const sendMessage = async (sid, userMessage) => {
-    const response = await fetch(`/api/diagnosis/sessions/${encodeURIComponent(sid)}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMessage }),
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || `发送消息失败，状态码: ${response.status}`);
-    }
-    return response.json();
-  };
-
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
 
@@ -66,56 +64,130 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setInputText('');
     setIsLoading(true);
+    // 插入一个空的 assistant 消息占位，用于流式追加 token
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true }]);
+
+    abortControllerRef.current = new AbortController();
 
     try {
-      let result;
-      if (!sessionId) {
-        // 首条消息 → 创建诊断会话
-        result = await createSession(userMessage);
-        setSessionId(result.session_id);
-        setSessionStatus(result.status);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: result.reply.content,
-            intent: result.reply.intent,
-          },
-        ]);
-      } else {
-        // 后续消息 → 发送到已有会话
-        result = await sendMessage(sessionId, userMessage);
-        setSessionStatus(result.status);
-        setDiagnosisSufficient(result.diagnosis_sufficient || false);
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: userMessage,
+          ...(conversationId ? { conversation_id: conversationId } : {}),
+        }),
+        signal: abortControllerRef.current.signal,
+      });
 
-        const faultTree = result.fault_tree || null;
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: result.reply.content,
-            intent: result.reply.intent,
-            sources: result.sources,
-            faultTree,
-          },
-        ]);
+      if (!response.ok) {
+        throw new Error(`请求失败，状态码: ${response.status}`);
       }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentSources = null;
+      let eventType = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // 保留不完整的行
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            let payload;
+            try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+
+            if (eventType === 'conversation') {
+              setConversationId(payload.conversation_id);
+            } else if (eventType === 'sources') {
+              currentSources = payload.sources;
+            } else if (eventType === 'token') {
+              // flushSync 强制 React 18 对每个 token 立即渲染，而非批量延迟
+              flushSync(() => {
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const last = { ...updated[updated.length - 1] };
+                  last.content = (last.content || '') + payload.content;
+                  updated[updated.length - 1] = last;
+                  return updated;
+                });
+              });
+            } else if (eventType === 'fault_tree') {
+              const tree = payload.fault_tree;
+              if (onFaultTreeGenerated) onFaultTreeGenerated(tree);
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { ...updated[updated.length - 1], faultTree: tree };
+                return updated;
+              });
+            } else if (eventType === 'done') {
+              const snapSources = currentSources;
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content || payload.answer || '',
+                  sources: snapSources,
+                  streaming: false,
+                };
+                return updated;
+              });
+            } else if (eventType === 'error') {
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content: `错误：${payload.message}`,
+                  streaming: false,
+                };
+                return updated;
+              });
+            }
+            eventType = null;
+          }
+        }
+      }
+      // 流读取完毕，确保 streaming 标志关闭
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last.role === 'assistant' && last.streaming) {
+          updated[updated.length - 1] = { ...last, sources: last.sources ?? currentSources, streaming: false };
+        }
+        return updated;
+      });
     } catch (error) {
-      console.error('诊断接口调用出错:', error);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `请求后端时出现错误: ${error.message}` },
-      ]);
+      if (error.name !== 'AbortError') {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last.role === 'assistant') {
+            updated[updated.length - 1] = { ...last, content: `请求出错：${error.message}`, streaming: false };
+          } else {
+            updated.push({ role: 'assistant', content: `请求出错：${error.message}` });
+          }
+          return updated;
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 开始新的诊断会话
+  // 开始新的对话
   const handleNewSession = () => {
-    setSessionId(null);
-    setSessionStatus(null);
-    setDiagnosisSufficient(false);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    setConversationId(null);
+    setIsLoading(false);
     setMessages([
       { role: 'assistant', content: '新会话已创建。请描述您遇到的设备故障现象，我会帮您分析定位问题。' },
     ]);
@@ -137,7 +209,7 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
         <div style={{ maxHeight: 120, overflowY: 'auto' }}>
           {sources.map((src, i) => (
             <div key={i} style={{ marginBottom: 6, paddingBottom: 4, borderBottom: i < sources.length - 1 ? '1px dashed #eee' : 'none', fontSize: 12, color: '#888' }}>
-              <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.source}</div>
+              <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.file_name}</div>
               <div>{src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}</div>
             </div>
           ))}
@@ -162,32 +234,23 @@ export default function AiChatPanel({ onFaultTreeGenerated }) {
           <RobotOutlined style={{ fontSize: 18, color: '#40b586' }} />
           <span style={{ fontWeight: 600, fontSize: 15, color: '#1a1a2e' }}>故障诊断助手</span>
         </div>
-        {sessionId && (
+        {conversationId && (
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleNewSession}>
             新会话
           </Button>
         )}
       </div>
 
-      {/* 会话状态栏 */}
-      {sessionId && (
+      {/* 会话 ID 状态栏 */}
+      {conversationId && (
         <div style={{
           padding: '6px 16px',
           borderBottom: '1px solid #f0f0f0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
           fontSize: 12,
           color: '#999',
           background: '#fafbfc',
         }}>
-          <span>#{sessionId.slice(0, 8)}</span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {diagnosisSufficient && <Tag color="blue" style={{ margin: 0, fontSize: 11 }}>信息充足</Tag>}
-            <Tag color={sessionStatus === 'in_progress' ? 'green' : 'orange'} style={{ margin: 0, fontSize: 11 }}>
-              {sessionStatus === 'in_progress' ? '诊断中' : sessionStatus === 'tree_generated' ? '已生成' : sessionStatus || ''}
-            </Tag>
-          </div>
+          <span>会话 #{conversationId.slice(0, 8)}</span>
         </div>
       )}
 

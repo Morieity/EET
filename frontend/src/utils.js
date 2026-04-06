@@ -88,17 +88,20 @@ export const convertFaultTreeToFlow = (faultTree) => {
   const rawNodes = faultTree.nodes || [];
   const rawEdges = faultTree.edges || [];
 
-  // 判断哪些节点没有入边（根节点）
-  const hasIncoming = new Set(rawEdges.map(e => e.target));
+  // 后端边字段为 source_id / target_id，判断哪些节点有入边（非根节点）
+  const hasIncoming = new Set(rawEdges.map(e => e.target_id));
 
   const nodes = rawNodes.map((n, index) => {
-    if (n.type === 'gate') {
+    // 后端 node_type 枚举值：'gate' 或 'event'
+    if (n.node_type === 'gate') {
       return {
         id: n.id,
         type: 'gate',
         position: { x: 0, y: index * 100 },
         data: {
-          gateType: n.data?.gateType || 'OR',
+          // 后端字段直接在节点顶层：gate_type，枚举值大写如 'AND'/'OR'
+          gateType: n.gate_type || 'OR',
+          label: n.label || '',
         },
       };
     }
@@ -109,8 +112,8 @@ export const convertFaultTreeToFlow = (faultTree) => {
       type: 'textUpdater',
       position: { x: 0, y: index * 100 },
       data: {
-        label: n.data?.label || n.id,
-        remark: n.data?.remark || '',
+        label: n.label || n.id,
+        remark: n.remark || '',
       },
       style: {
         backgroundColor: isRoot ? '#e74c3c' : '#40b586',
@@ -121,8 +124,8 @@ export const convertFaultTreeToFlow = (faultTree) => {
 
   const edges = rawEdges.map((e) => ({
     id: e.id,
-    source: e.source,
-    target: e.target,
+    source: e.source_id,
+    target: e.target_id,
     type: 'smoothstep',
   }));
 

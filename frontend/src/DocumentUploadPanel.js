@@ -1,46 +1,78 @@
 import React, { useState, useRef } from 'react';
-import { Button, Upload, Typography, Space, Alert, Statistic, Row, Col } from 'antd';
-import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { Upload, Typography, Alert, Tag } from 'antd';
+import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
 
-export default function DocumentUploadPanel() {
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md'];
+
+export default function DocumentUploadPanel({ onUploadSuccess }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [fileStatus, setFileStatus] = useState(null); // 'pending' | 'embedded' | 'failed'
+  const sseRef = useRef(null);
+
+  const watchStatus = (fileName) => {
+    if (sseRef.current) sseRef.current.close();
+    const sse = new EventSource(`/api/files/${encodeURIComponent(fileName)}/status`);
+    sseRef.current = sse;
+    sse.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const status = data.status;
+        setFileStatus(status);
+        if (status === 'embedded' || status === 'failed') {
+          sse.close();
+        }
+      } catch {}
+    };
+    sse.onerror = () => sse.close();
+  };
 
   const customUpload = async ({ file, onSuccess, onError }) => {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setUploadResult({ error: '请选择 PDF 格式文件' });
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      setUploadResult({ error: `不支持的文件类型，请选择：${ALLOWED_EXTENSIONS.join(', ')}` });
       onError(new Error('Invalid format'));
       return;
     }
 
     setIsUploading(true);
     setUploadResult(null);
+    setFileStatus(null);
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/documents/upload', {
+      const response = await fetch('/api/files', {
         method: 'POST',
         body: formData,
       });
       const data = await response.json();
-      if (response.ok) {
-        setUploadResult({ success: true, ...data });
+      if (response.ok || response.status === 202) {
+        setUploadResult({ success: true, file_name: data.file_name, file_id: data.id });
+        setFileStatus(data.status);
         onSuccess(data);
+        watchStatus(data.file_name);
+        if (onUploadSuccess) onUploadSuccess();
       } else {
-        setUploadResult({ error: data.message || `上传失败 (${response.status})` });
-        onError(new Error(data.message));
+        setUploadResult({ error: data.error || `上传失败 (${response.status})` });
+        onError(new Error(data.error));
       }
     } catch (error) {
-      setUploadResult({ error: `网络错误: ${error.message}` });
+      setUploadResult({ error: `网络错误：${error.message}` });
       onError(error);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const statusInfo = {
+    pending:  { icon: <SyncOutlined spin />,        color: 'processing', text: '向量化中...' },
+    embedded: { icon: <CheckCircleOutlined />,       color: 'success',    text: '已入知识库' },
+    failed:   { icon: <CloseCircleOutlined />,       color: 'error',      text: '处理失败' },
   };
 
   return (
@@ -52,7 +84,7 @@ export default function DocumentUploadPanel() {
 
       <Dragger
         customRequest={customUpload}
-        accept=".pdf"
+        accept={ALLOWED_EXTENSIONS.join(',')}
         showUploadList={false}
         disabled={isUploading}
         style={{
@@ -65,10 +97,10 @@ export default function DocumentUploadPanel() {
           <InboxOutlined />
         </p>
         <p style={{ fontSize: 13, color: '#666', margin: 0 }}>
-          {isUploading ? '正在处理中...' : '点击或拖拽 PDF 文件上传'}
+          {isUploading ? '正在上传...' : '点击或拖拽文件上传'}
         </p>
         <p style={{ fontSize: 11, color: '#bbb', margin: '4px 0 0' }}>
-          支持设备手册、故障报告等
+          支持 PDF、Word、TXT、Markdown
         </p>
       </Dragger>
 
@@ -92,19 +124,17 @@ export default function DocumentUploadPanel() {
           border: '1px solid #b7eb8f',
         }}>
           <Text strong style={{ fontSize: 12, color: '#52c41a', display: 'block', marginBottom: 8 }}>
-            <CheckCircleOutlined /> 上传成功 — {uploadResult.filename}
+            <CheckCircleOutlined /> 上传成功 — {uploadResult.file_name}
           </Text>
-          <Row gutter={8}>
-            <Col span={8}>
-              <Statistic title={<span style={{ fontSize: 10 }}>总切片</span>} value={uploadResult.total_chunks} valueStyle={{ fontSize: 16, color: '#1890ff' }} />
-            </Col>
-            <Col span={8}>
-              <Statistic title={<span style={{ fontSize: 10 }}>入库</span>} value={uploadResult.persisted_chunks} valueStyle={{ fontSize: 16, color: '#52c41a' }} />
-            </Col>
-            <Col span={8}>
-              <Statistic title={<span style={{ fontSize: 10 }}>去重</span>} value={uploadResult.deduplicated_chunks} valueStyle={{ fontSize: 16, color: '#faad14' }} />
-            </Col>
-          </Row>
+          {fileStatus && statusInfo[fileStatus] && (
+            <Tag
+              icon={statusInfo[fileStatus].icon}
+              color={statusInfo[fileStatus].color}
+              style={{ fontSize: 12 }}
+            >
+              {statusInfo[fileStatus].text}
+            </Tag>
+          )}
         </div>
       )}
     </div>

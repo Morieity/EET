@@ -2,13 +2,15 @@ import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, Controls, Background, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Tooltip, Divider, Input, ColorPicker, Segmented, Typography, Space } from 'antd';
+import { Button, Tooltip, Input, ColorPicker, Segmented, Typography, Space } from 'antd';
 import {
   HomeOutlined, ImportOutlined, ExportOutlined, CloudUploadOutlined,
   ApartmentOutlined, PlusOutlined, NodeIndexOutlined,
 } from '@ant-design/icons';
 import AiChatPanel from './AiChatPanel';
-import DocumentUploadPanel from './DocumentUploadPanel';
+import FileListPanel from './FileListPanel';
+import ConversationHistoryPanel from './ConversationHistoryPanel';
+import FaultTreeLibraryPanel from './FaultTreeLibraryPanel';
 import TextUpdaterNode from './TextUpdaterNode';
 import GateNode from './GateNode';
 import { initialNodes, initialEdges } from './initialElements';
@@ -28,19 +30,41 @@ export default function Flow() {
   const [edges, setEdges] = useState(initialEdges);
   const [variant, setVariant] = useState('cross');
   const [faultTreeId, setFaultTreeId] = useState(null);
-  
+  const [faultTreeName, setFaultTreeName] = useState(null);
+  const [leftTab, setLeftTab] = useState('edit');   // 'edit' | 'files'
+  const [rightTab, setRightTab] = useState('chat'); // 'chat' | 'history' | 'trees'
+  const [chatKey, setChatKey] = useState(0);        // 强制重挂 AiChatPanel
+  const [activeConvId, setActiveConvId] = useState(null);
+
   const fileInputRef = useRef(null);
   const { screenToFlowPosition, toObject, setViewport, fitView } = useReactFlow();
 
-  // 接收 AI 诊断生成的故障树并渲染到画布
-  const handleFaultTreeGenerated = useCallback((faultTree) => {
+  // 将故障树数据渲染到画布（AI生成/从库加载共用）
+  const loadFaultTreeToCanvas = useCallback((faultTree) => {
     const { nodes: ftNodes, edges: ftEdges } = convertFaultTreeToFlow(faultTree);
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(ftNodes, ftEdges, 'TB');
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
     setFaultTreeId(faultTree.id || null);
+    setFaultTreeName(faultTree.name || '未命名故障树');
     window.requestAnimationFrame(() => { fitView(); });
   }, [setNodes, setEdges, fitView]);
+
+  const handleFaultTreeGenerated = useCallback((faultTree) => {
+    loadFaultTreeToCanvas(faultTree);
+  }, [loadFaultTreeToCanvas]);
+
+  // 从故障树库加载到画布
+  const handleLoadFaultTree = useCallback((faultTree) => {
+    loadFaultTreeToCanvas(faultTree);
+  }, [loadFaultTreeToCanvas]);
+
+  // 从历史对话面板切换到 AI 对话并恢复该会话
+  const handleSelectConversation = useCallback((convId) => {
+    setActiveConvId(convId);
+    setChatKey(k => k + 1);
+    setRightTab('chat');
+  }, []);
 
   const onLayout = useCallback(
     (direction) => {
@@ -122,53 +146,58 @@ export default function Flow() {
   const onSaveToServer = useCallback(async () => {
     const flow = toObject();
 
-    // 将 React Flow 节点/边转换为后端故障树格式
+    // 将 React Flow 节点/边转换为后端期望的格式（扁平字段，非嵌套 data）
     const treeNodes = flow.nodes.map((n) => {
-      const d = { ...n.data };
-      // 移除前端专用字段
-      delete d.label;
-      delete d.remark;
-      delete d.gateType;
-      if (n.type === 'textUpdater' || n.type === 'event') {
-        return { id: n.id, type: 'event', data: { label: n.data.label || '', ...(n.data.remark ? { remark: n.data.remark } : {}) } };
-      }
       if (n.type === 'gate') {
-        return { id: n.id, type: 'gate', data: { gateType: n.data.gateType || 'OR' } };
+        return {
+          id: n.id,
+          node_type: 'gate',
+          label: n.data.label || '',
+          gate_type: n.data.gateType || 'OR',
+          remark: n.data.remark || '',
+        };
       }
-      return { id: n.id, type: n.type, data: n.data };
+      // textUpdater / event
+      return {
+        id: n.id,
+        node_type: 'event',
+        label: n.data.label || '',
+        remark: n.data.remark || '',
+      };
     });
 
     const treeEdges = flow.edges.map((e) => ({
       id: e.id,
-      source: e.source,
-      target: e.target,
+      source_id: e.source,
+      target_id: e.target,
     }));
 
-    const payload = { nodes: treeNodes, edges: treeEdges };
+    const payload = {
+      name: faultTreeName || '未命名故障树',
+      nodes: treeNodes,
+      edges: treeEdges,
+    };
 
-    if (faultTreeId) {
-      // 保存到已有故障树
-      try {
-        const resp = await fetch(`/api/fault-trees/${encodeURIComponent(faultTreeId)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (resp.ok) {
-          alert('故障树已保存到服务器！');
-        } else {
-          const err = await resp.json().catch(() => ({}));
-          alert(`保存失败: ${err.message || resp.status}`);
-        }
-      } catch (error) {
-        alert(`保存失败: ${error.message}`);
-      }
-    } else {
-      // 没有关联故障树时，导出到控制台并提示
-      console.log('故障树数据 (无关联ID):', payload);
-      alert('当前画布未关联诊断会话的故障树。\n请先通过 AI 诊断生成故障树，然后再保存。');
+    if (!faultTreeId) {
+      alert('当前画布未关联故障树。\n请先通过 AI 诊断生成故障树，或从故障树库加载，然后再保存。');
+      return;
     }
-  }, [toObject, faultTreeId]);
+    try {
+      const resp = await fetch(`/api/fault-trees/${encodeURIComponent(faultTreeId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (resp.ok) {
+        alert('故障树已保存！');
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        alert(`保存失败: ${err.error || err.message || resp.status}`);
+      }
+    } catch (error) {
+      alert(`保存失败: ${error.message}`);
+    }
+  }, [toObject, faultTreeId, faultTreeName]);
 
   const onNodesChange = useCallback(
     (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
@@ -295,24 +324,49 @@ export default function Flow() {
           </Space>
         </div>
 
-        {/* 背景样式 */}
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0' }}>
-          <Text type="secondary" style={{ fontSize: 11, marginBottom: 6, display: 'block' }}>画布背景</Text>
-          <Segmented
-            size="small"
-            options={[
-              { label: '点', value: 'dots' },
-              { label: '线', value: 'lines' },
-              { label: '十字', value: 'cross' },
-            ]}
-            value={variant}
-            onChange={setVariant}
-            style={{ width: '100%' }}
-          />
+        {/* ===== 左侧自定义 Tab 栏 ===== */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0' }}>
+          {[
+            { key: 'edit',  label: '节点编辑' },
+            { key: 'files', label: '文件库' },
+          ].map(tab => (
+            <div
+              key={tab.key}
+              onClick={() => setLeftTab(tab.key)}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '8px 4px',
+                fontSize: 12,
+                cursor: 'pointer',
+                fontWeight: leftTab === tab.key ? 600 : 400,
+                color: leftTab === tab.key ? '#40b586' : '#666',
+                borderBottom: leftTab === tab.key ? '2px solid #40b586' : '2px solid transparent',
+                userSelect: 'none',
+              }}
+            >
+              {tab.label}
+            </div>
+          ))}
         </div>
 
-        {/* Node Editor 区域 */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* ===== 节点编辑 Tab ===== */}
+        <div style={{ flex: 1, overflowY: 'auto', display: leftTab === 'edit' ? 'block' : 'none' }}>
+          {/* 背景样式 */}
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0' }}>
+            <Text type="secondary" style={{ fontSize: 11, marginBottom: 6, display: 'block' }}>画布背景</Text>
+            <Segmented
+              size="small"
+              options={[
+                { label: '点', value: 'dots' },
+                { label: '线', value: 'lines' },
+                { label: '十字', value: 'cross' },
+              ]}
+              value={variant}
+              onChange={setVariant}
+              style={{ width: '100%' }}
+            />
+          </div>
           <div style={{ padding: '12px 16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -409,11 +463,11 @@ export default function Flow() {
               </div>
             )}
           </div>
+        </div>
 
-          <Divider style={{ margin: '4px 0' }} />
-
-          {/* 文档上传区域 */}
-          <DocumentUploadPanel />
+        {/* ===== 文件库 Tab ===== */}
+        <div style={{ flex: 1, overflowY: 'auto', display: leftTab === 'files' ? 'block' : 'none' }}>
+          <FileListPanel />
         </div>
       </div>
 
@@ -433,17 +487,64 @@ export default function Flow() {
         </ReactFlow>
       </div>
 
-      {/* ========== 右侧 AI 面板 (25%) ========== */}
+      {/* ========== 右侧面板 (25%) ========== */}
       <div style={{
         width: '25%',
         minWidth: 300,
         maxWidth: 400,
         borderLeft: '1px solid #e8e8e8',
         background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
         overflow: 'hidden',
       }}>
-        <AiChatPanel onFaultTreeGenerated={handleFaultTreeGenerated} />
+        {/* 右侧自定义 Tab 栏 */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+          {[
+            { key: 'chat',    label: 'AI 对话' },
+            { key: 'history', label: '历史对话' },
+            { key: 'trees',   label: '故障树库' },
+          ].map(tab => (
+            <div
+              key={tab.key}
+              onClick={() => setRightTab(tab.key)}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '8px 4px',
+                fontSize: 12,
+                cursor: 'pointer',
+                fontWeight: rightTab === tab.key ? 600 : 400,
+                color: rightTab === tab.key ? '#40b586' : '#666',
+                borderBottom: rightTab === tab.key ? '2px solid #40b586' : '2px solid transparent',
+                userSelect: 'none',
+              }}
+            >
+              {tab.label}
+            </div>
+          ))}
+        </div>
+
+        {/* AI 对话 */}
+        <div style={{ flex: 1, overflow: 'hidden', display: rightTab === 'chat' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <AiChatPanel
+            key={chatKey}
+            initialConversationId={activeConvId}
+            onFaultTreeGenerated={handleFaultTreeGenerated}
+          />
+        </div>
+
+        {/* 历史对话 */}
+        <div style={{ flex: 1, overflow: 'hidden', display: rightTab === 'history' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <ConversationHistoryPanel onSelectConversation={handleSelectConversation} />
+        </div>
+
+        {/* 故障树库 */}
+        <div style={{ flex: 1, overflow: 'hidden', display: rightTab === 'trees' ? 'flex' : 'none', flexDirection: 'column' }}>
+          <FaultTreeLibraryPanel onLoadTree={handleLoadFaultTree} />
+        </div>
       </div>
     </div>
   );
 }
+
