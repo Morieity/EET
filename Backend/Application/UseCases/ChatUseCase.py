@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 from collections.abc import Generator
@@ -8,6 +9,16 @@ from Backend.Application.Interfaces.ILLMService import ILLMService
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 
 logger = logging.getLogger(__name__)
+
+# 用于判断用户是否想要操作故障树的关键词模式
+_FAULT_TREE_GENERATE_PATTERN = re.compile(
+    r"(生成|创建|构建|画|建立|分析).{0,10}(故障树|故障分析|FTA)",
+    re.IGNORECASE,
+)
+_FAULT_TREE_UPDATE_PATTERN = re.compile(
+    r"(修改|更新|调整|删除|添加|增加|移除|重命名|改).{0,10}(故障树|节点|逻辑门|连接)",
+    re.IGNORECASE,
+)
 
 SYSTEM_PROMPT = (
     "你是一个基于文档的智能助手，擅长根据提供的文档内容回答问题和生成故障树。\n"
@@ -105,13 +116,23 @@ class ChatUseCase:
 
         messages.append({"role": "user", "content": user_content})
 
-        # 4. 先用 tool calling 判断是否需要生成/修改故障树
-        try:
-            tool_result = self._llm.chat_with_tools(
-                messages, self._fault_tree_skill.tools
-            )
-        except Exception:
-            logger.exception("LLM chat_with_tools failed, falling back to stream_chat")
+        # 4. 通过关键词快速判断是否需要生成/修改故障树
+        generate_match = _FAULT_TREE_GENERATE_PATTERN.search(question)
+        update_match = _FAULT_TREE_UPDATE_PATTERN.search(question)
+
+        if generate_match:
+            tool_result = {
+                "type": "tool_call",
+                "name": "generate_fault_tree",
+                "arguments": {"description": question},
+            }
+        elif update_match:
+            tool_result = {
+                "type": "tool_call",
+                "name": "update_fault_tree",
+                "arguments": {"description": question},
+            }
+        else:
             tool_result = {"type": "text"}
 
         if tool_result["type"] == "tool_call":
