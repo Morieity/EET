@@ -27,7 +27,7 @@ def create_app() -> Flask:
     # Infrastructure 实例化
     file_repository = SQLiteFileRepository()
     file_storage = LocalFileStorage(upload_folder="uploads")
-    document_processor = DocumentProcessorPro(chunk_size=1024, chunk_overlap=80)
+    document_processor = DocumentProcessorPro(chunk_size=1024, chunk_overlap=200)
     vector_store_repository = ChromaVectorStoreRepository(persist_directory="db")
     conversation_repository = SQLiteConversationRepository()
     fault_tree_repository = SQLiteFaultTreeRepository()
