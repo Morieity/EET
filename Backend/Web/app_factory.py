@@ -4,7 +4,7 @@ from Backend.Infrastructure.persistence.FileRepository import SQLiteFileReposito
 from Backend.Infrastructure.persistence.LocalFileStorage import LocalFileStorage
 from Backend.Infrastructure.persistence.ConversationRepository import SQLiteConversationRepository
 from Backend.Infrastructure.persistence.FaultTreeRepository import SQLiteFaultTreeRepository
-from Backend.Infrastructure.document.DocumentProcessor import DocumentProcessor
+from Backend.Infrastructure.document.DocumentProcessorPro import DocumentProcessorPro
 from Backend.Infrastructure.vectorstore.ChromaVectorStoreRepository import ChromaVectorStoreRepository
 from Backend.Infrastructure.llm.LLMService import LLMService
 from Backend.Application.UseCases.ImportFileUseCase import ImportFileUseCase
@@ -27,7 +27,7 @@ def create_app() -> Flask:
     # Infrastructure 实例化
     file_repository = SQLiteFileRepository()
     file_storage = LocalFileStorage(upload_folder="uploads")
-    document_processor = DocumentProcessor(chunk_size=1024, chunk_overlap=80)
+    document_processor = DocumentProcessorPro(chunk_size=1024, chunk_overlap=200)
     vector_store_repository = ChromaVectorStoreRepository(persist_directory="db")
     conversation_repository = SQLiteConversationRepository()
     fault_tree_repository = SQLiteFaultTreeRepository()
