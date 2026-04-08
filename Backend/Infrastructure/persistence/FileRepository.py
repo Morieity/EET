@@ -11,8 +11,8 @@ class SQLiteFileRepository(IFileRepository):
         conn = get_connection()
         try:
             conn.execute(
-                "INSERT INTO files (id, file_name, file_type, created_at, status) VALUES (?, ?, ?, ?, ?)",
-                (file.id, file.file_name, file.file_type.value, file.created_at.isoformat(), file.status.value),
+                "INSERT INTO files (id, file_name, file_type, created_at, status, folder_id) VALUES (?, ?, ?, ?, ?, ?)",
+                (file.id, file.file_name, file.file_type.value, file.created_at.isoformat(), file.status.value, file.folder_id),
             )
             conn.commit()
         finally:
@@ -52,6 +52,22 @@ class SQLiteFileRepository(IFileRepository):
         finally:
             conn.close()
 
+    def update_folder(self, file_id: str, folder_id: str | None) -> None:
+        conn = get_connection()
+        try:
+            conn.execute("UPDATE files SET folder_id = ? WHERE id = ?", (folder_id, file_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_by_folder_id(self, folder_id: str) -> list[File]:
+        conn = get_connection()
+        try:
+            rows = conn.execute("SELECT * FROM files WHERE folder_id = ? ORDER BY created_at DESC", (folder_id,)).fetchall()
+            return [self._row_to_entity(row) for row in rows]
+        finally:
+            conn.close()
+
     @staticmethod
     def _row_to_entity(row) -> File:
         return File(
@@ -60,4 +76,5 @@ class SQLiteFileRepository(IFileRepository):
             file_type=FileType(row["file_type"]),
             created_at=datetime.fromisoformat(row["created_at"]),
             status=FileStatus(row["status"]),
+            folder_id=row["folder_id"],
         )

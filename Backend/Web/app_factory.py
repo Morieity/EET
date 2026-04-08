@@ -4,6 +4,7 @@ from Backend.Infrastructure.persistence.FileRepository import SQLiteFileReposito
 from Backend.Infrastructure.persistence.LocalFileStorage import LocalFileStorage
 from Backend.Infrastructure.persistence.ConversationRepository import SQLiteConversationRepository
 from Backend.Infrastructure.persistence.FaultTreeRepository import SQLiteFaultTreeRepository
+from Backend.Infrastructure.persistence.FolderRepository import SQLiteFolderRepository
 from Backend.Infrastructure.document.DocumentProcessorPro import DocumentProcessorPro
 from Backend.Infrastructure.vectorstore.ChromaVectorStoreRepository import ChromaVectorStoreRepository
 from Backend.Infrastructure.llm.LLMService import LLMService
@@ -12,10 +13,12 @@ from Backend.Application.UseCases.DeleteFileUseCase import DeleteFileUseCase
 from Backend.Application.UseCases.ChatUseCase import ChatUseCase
 from Backend.Application.UseCases.DeleteConversationUseCase import DeleteConversationUseCase
 from Backend.Application.UseCases.FaultTreeUseCase import FaultTreeUseCase
+from Backend.Application.UseCases.FolderUseCase import FolderUseCase
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 from Backend.Web.Endpoints.FileEndpoint import create_file_blueprint
 from Backend.Web.Endpoints.ChatEndpoint import create_chat_blueprint
 from Backend.Web.Endpoints.FaultTreeEndpoint import create_fault_tree_blueprint
+from Backend.Web.Endpoints.FolderEndpoint import create_folder_blueprint
 
 
 def create_app() -> Flask:
@@ -31,6 +34,7 @@ def create_app() -> Flask:
     vector_store_repository = ChromaVectorStoreRepository(persist_directory="db")
     conversation_repository = SQLiteConversationRepository()
     fault_tree_repository = SQLiteFaultTreeRepository()
+    folder_repository = SQLiteFolderRepository()
     llm_service = LLMService()
 
     # Skills 组装
@@ -61,6 +65,10 @@ def create_app() -> Flask:
     fault_tree_use_case = FaultTreeUseCase(
         fault_tree_repository=fault_tree_repository,
     )
+    folder_use_case = FolderUseCase(
+        folder_repository=folder_repository,
+        file_repository=file_repository,
+    )
 
     # 注册 Blueprint
     file_bp = create_file_blueprint(import_use_case, delete_use_case, file_repository)
@@ -71,5 +79,8 @@ def create_app() -> Flask:
 
     fault_tree_bp = create_fault_tree_blueprint(fault_tree_use_case)
     app.register_blueprint(fault_tree_bp)
+
+    folder_bp = create_folder_blueprint(folder_use_case)
+    app.register_blueprint(folder_bp)
 
     return app
