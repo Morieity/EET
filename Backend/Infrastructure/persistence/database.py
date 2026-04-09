@@ -102,15 +102,6 @@ def init_db() -> None:
             conn.execute(_CREATE_FAULT_TREES_SQL)
             conn.execute(_CREATE_FAULT_TREE_NODES_SQL)
             conn.execute(_CREATE_FAULT_TREE_EDGES_SQL)
-            # 迁移：为已有 files 表添加 folder_id 列
-            _migrate_files_folder_id(conn)
             conn.commit()
     finally:
         conn.close()
-
-
-def _migrate_files_folder_id(conn: sqlite3.Connection) -> None:
-    """为已有的 files 表添加 folder_id 列（如果尚未存在）。"""
-    columns = [row["name"] for row in conn.execute("PRAGMA table_info(files)").fetchall()]
-    if "folder_id" not in columns:
-        conn.execute("ALTER TABLE files ADD COLUMN folder_id TEXT REFERENCES folders(id)")
