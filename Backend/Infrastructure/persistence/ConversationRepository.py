@@ -75,8 +75,8 @@ class SQLiteConversationRepository(IConversationRepository):
         conn = get_connection()
         try:
             conn.execute(
-                "INSERT INTO chat_rounds (id, conversation_id, question, prompt, answer, sources, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO chat_rounds (id, conversation_id, question, prompt, answer, sources, fault_tree_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     chat_round.id,
                     conversation_id,
@@ -84,6 +84,7 @@ class SQLiteConversationRepository(IConversationRepository):
                     chat_round.prompt,
                     chat_round.answer,
                     json.dumps(chat_round.sources, ensure_ascii=False),
+                    chat_round.fault_tree_id,
                     chat_round.created_at.isoformat(),
                 ),
             )
@@ -94,7 +95,7 @@ class SQLiteConversationRepository(IConversationRepository):
     @staticmethod
     def _load_rounds(conn, conversation_id: str) -> list[ChatRound]:
         rows = conn.execute(
-            "SELECT id, question, prompt, answer, sources, created_at "
+            "SELECT id, question, prompt, answer, sources, fault_tree_id, created_at "
             "FROM chat_rounds WHERE conversation_id = ? ORDER BY created_at ASC",
             (conversation_id,),
         ).fetchall()
@@ -105,6 +106,7 @@ class SQLiteConversationRepository(IConversationRepository):
                 prompt=row["prompt"],
                 answer=row["answer"],
                 sources=json.loads(row["sources"]) if row["sources"] else [],
+                fault_tree_id=row["fault_tree_id"],
                 created_at=datetime.fromisoformat(row["created_at"]),
             )
             for row in rows

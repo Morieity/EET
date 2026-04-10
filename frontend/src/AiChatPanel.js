@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
-import { Input, Button, Tag, Collapse, Empty, Spin } from 'antd';
+import { Input, Button, Tag, Collapse, Empty, Spin, message } from 'antd';
+import { useNavigate, useParams } from 'react-router-dom';
 import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
 import FaultTreeCard from './FaultTreeCard';
 import { extractFaultTreeFromText } from './utils';
@@ -17,22 +18,117 @@ const INTENT_CONFIG = {
   fault_tree_generated: { label: '✅ 已生成故障树', color: '#8e44ad' },
 };
 
+const DEFAULT_WELCOME_MESSAGE = '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。';
+const DEFAULT_NEW_SESSION_MESSAGE = '新会话已创建。请描述您遇到的设备故障现象，我会帮您分析定位问题。';
+const PERSISTED_TREE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function createAssistantMessage(content) {
+  return [{ role: 'assistant', content }];
+}
+
 export default function AiChatPanel({ initialConversationId, injectedTree, onInjected, onConversationCreated, onViewFaultTree }) {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。' }
-  ]);
+  const navigate = useNavigate();
+  const { conversationId: routeConversationId } = useParams();
+  const [messages, setMessages] = useState(createAssistantMessage(DEFAULT_WELCOME_MESSAGE));
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const conversationIdRef = useRef(null);
+  const loadRequestRef = useRef(0);
 
-  // 如果传入了初始会话 ID，挂载时加载历史记录
-  useEffect(() => {
-    if (initialConversationId) {
-      loadConversation(initialConversationId);
+  const setConversationState = useCallback((nextConversationId) => {
+    conversationIdRef.current = nextConversationId;
+    setConversationId(nextConversationId);
+  }, []);
+
+  const loadConversation = useCallback(async (convId, requestId) => {
+    try {
+      const resp = await fetch(`/api/conversations/${encodeURIComponent(convId)}`);
+      if (requestId !== loadRequestRef.current) return;
+      if (!resp.ok) {
+        setConversationState(null);
+        setMessages(createAssistantMessage('未找到该历史对话，请开始新的诊断会话。'));
+        return;
+      }
+      const conv = await resp.json();
+      if (requestId !== loadRequestRef.current) return;
+
+      const roundTreeIds = [...new Set(
+        (conv.rounds || [])
+          .map((round) => round.fault_tree_id)
+          .filter(Boolean)
+      )];
+      const roundTrees = new Map();
+
+      if (roundTreeIds.length > 0) {
+        const treeEntries = await Promise.all(roundTreeIds.map(async (treeId) => {
+          try {
+            const treeResp = await fetch(`/api/fault-trees/${encodeURIComponent(treeId)}`);
+            if (!treeResp.ok) {
+              return null;
+            }
+            const tree = await treeResp.json();
+            return [treeId, tree];
+          } catch (error) {
+            console.error('加载轮次关联故障树失败', error);
+            return null;
+          }
+        }));
+
+        if (requestId !== loadRequestRef.current) return;
+
+        treeEntries.filter(Boolean).forEach(([treeId, tree]) => {
+          roundTrees.set(treeId, tree);
+        });
+      }
+
+      const msgs = [];
+      for (const round of (conv.rounds || [])) {
+        msgs.push({ role: 'user', content: round.question });
+        const sources = Array.isArray(round.sources) ? round.sources : [];
+        msgs.push({
+          role: 'assistant',
+          content: round.answer,
+          sources,
+          faultTree: round.fault_tree_id ? roundTrees.get(round.fault_tree_id) || undefined : undefined,
+          faultTreeId: round.fault_tree_id || null,
+        });
+      }
+      setConversationState(convId);
+      setMessages(msgs.length > 0 ? msgs : createAssistantMessage(DEFAULT_WELCOME_MESSAGE));
+    } catch (e) {
+      if (requestId !== loadRequestRef.current) return;
+      console.error('加载历史对话失败', e);
+      setConversationState(null);
+      setMessages(createAssistantMessage('加载历史对话失败，请稍后重试。'));
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setConversationState]);
+
+  // 路由驱动会话恢复：只有当 URL 会话与当前本地会话不一致时才重新拉取。
+  useEffect(() => {
+    const nextConversationId = routeConversationId ?? initialConversationId ?? null;
+
+    if (nextConversationId && nextConversationId === conversationIdRef.current) {
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    loadRequestRef.current += 1;
+    setIsLoading(false);
+
+    if (nextConversationId) {
+      setMessages(createAssistantMessage('正在加载历史对话...'));
+      loadConversation(nextConversationId, loadRequestRef.current);
+      return;
+    }
+
+    setConversationState(null);
+    setMessages(createAssistantMessage(DEFAULT_WELCOME_MESSAGE));
+  }, [routeConversationId, initialConversationId, loadConversation, setConversationState]);
 
   // T011: 外部注入故障树时追加 system 消息
   useEffect(() => {
@@ -41,25 +137,6 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       onInjected?.();
     }
   }, [injectedTree]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 读取历史对话并恢复消息列表
-  const loadConversation = async (convId) => {
-    try {
-      const resp = await fetch(`/api/conversations/${encodeURIComponent(convId)}`);
-      if (!resp.ok) return;
-      const conv = await resp.json();
-      const msgs = [];
-      for (const round of (conv.rounds || [])) {
-        msgs.push({ role: 'user', content: round.question });
-        const sources = Array.isArray(round.sources) ? round.sources : [];
-        msgs.push({ role: 'assistant', content: round.answer, sources });
-      }
-      setConversationId(convId);
-      setMessages(msgs);
-    } catch (e) {
-      console.error('加载历史对话失败', e);
-    }
-  };
 
   // 每次消息更新后自动滚动到底部
   useEffect(() => {
@@ -117,8 +194,11 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
             try { payload = JSON.parse(line.slice(6)); } catch { continue; }
 
             if (eventType === 'conversation') {
-              setConversationId(payload.conversation_id);
+              setConversationState(payload.conversation_id);
               onConversationCreated?.();
+              if (routeConversationId !== payload.conversation_id) {
+                navigate(`/flow/${payload.conversation_id}`, { replace: true });
+              }
               setMessages((prev) => {
                 const updated = [...prev];
                 const last = { ...updated[updated.length - 1] };
@@ -155,6 +235,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
                 const updated = [...prev];
                 const last = { ...updated[updated.length - 1] };
                 last.faultTree = tree;
+                last.faultTreeId = tree?.id || last.faultTreeId || null;
                 updated[updated.length - 1] = last;
                 return updated;
               });
@@ -167,6 +248,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
                   ...last,
                   content: last.content || payload.answer || '',
                   sources: snapSources,
+                  faultTreeId: payload.fault_tree_id || last.faultTreeId || null,
                   streaming: false,
                 };
                 return updated;
@@ -214,14 +296,50 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
   };
 
   // 开始新的对话
-  const handleNewSession = () => {
+  const handleNewSession = useCallback(() => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
-    setConversationId(null);
+    loadRequestRef.current += 1;
+    setConversationState(null);
     setIsLoading(false);
-    setMessages([
-      { role: 'assistant', content: '新会话已创建。请描述您遇到的设备故障现象，我会帮您分析定位问题。' },
-    ]);
-  };
+    setMessages(createAssistantMessage(DEFAULT_NEW_SESSION_MESSAGE));
+    if (routeConversationId) {
+      navigate('/flow');
+    }
+  }, [navigate, routeConversationId, setConversationState]);
+
+  const resolvePersistedTreeId = useCallback((tree) => {
+    const candidates = [tree?.id, tree?.fault_tree_id];
+
+    for (const candidate of candidates) {
+      const rawTreeId = candidate == null ? '' : String(candidate);
+      if (PERSISTED_TREE_ID_PATTERN.test(rawTreeId)) {
+        return rawTreeId;
+      }
+    }
+
+    return null;
+  }, []);
+
+  const handleViewFaultTree = useCallback((tree) => {
+    if (onViewFaultTree) {
+      onViewFaultTree(tree);
+      return;
+    }
+
+    const activeConversationId = tree?.conversation_id || conversationIdRef.current;
+    if (!activeConversationId) {
+      message.warning('当前会话尚未建立，暂时无法跳转到故障树页面');
+      return;
+    }
+
+    const persistedTreeId = resolvePersistedTreeId(tree);
+    if (!persistedTreeId) {
+      message.warning('该轮对话未关联已保存的故障树 ID，无法准确跳转到对应画布');
+      return;
+    }
+
+    navigate(`/flow/${activeConversationId}/${persistedTreeId}`);
+  }, [navigate, onViewFaultTree, resolvePersistedTreeId]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -306,6 +424,13 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
             displayContent = extracted ? extracted.cleanedContent : msg.content;
           }
 
+          if (faultTree && msg.faultTreeId && !faultTree.id) {
+            faultTree = { ...faultTree, id: msg.faultTreeId };
+          }
+          if (faultTree && !faultTree.conversation_id && conversationIdRef.current) {
+            faultTree = { ...faultTree, conversation_id: conversationIdRef.current };
+          }
+
           return (
           <div key={index} className={`fc-msg-row ${msg.role === 'user' ? 'fc-msg-row--user' : ''}`}>
             {/* 头像 */}
@@ -361,7 +486,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
                 </div>
               )}
               {/* 故障树卡片 */}
-              {faultTree && <FaultTreeCard tree={faultTree} onView={onViewFaultTree} />}
+              {faultTree && <FaultTreeCard tree={faultTree} onView={handleViewFaultTree} />}
             </div>
           </div>
           );

@@ -122,6 +122,7 @@ class ChatUseCase:
         is_fault_tree_request = bool(generate_match or update_match)
 
         full_answer = ""
+        fault_tree_id: str | None = None
 
         if is_fault_tree_request:
             # 构建带工具指令的 messages，供后台 function calling 使用
@@ -193,6 +194,7 @@ class ChatUseCase:
             # 等待故障树后台线程完成（最多 120 秒），并在结尾推送结果
             async_done.wait(timeout=120)
             if fault_tree_container[0] is not None:
+                fault_tree_id = fault_tree_container[0].id
                 yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
             else:
                 logger.warning("Async fault tree generation produced no result for: %s", question)
@@ -214,14 +216,19 @@ class ChatUseCase:
             prompt=user_content,
             answer=full_answer,
             sources=sources,
+            fault_tree_id=fault_tree_id,
         )
         self._conversation_repo.add_round(conversation.id, chat_round)
         logger.info("Chat round saved for conversation: %s", conversation.id)
 
-        yield {
+        done_event = {
             "type": "done",
             "conversation_id": conversation.id,
             "answer": full_answer,
         }
+        if fault_tree_id:
+            done_event["fault_tree_id"] = fault_tree_id
+
+        yield done_event
 
 

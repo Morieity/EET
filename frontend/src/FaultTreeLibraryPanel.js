@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { List, Button, Empty, Spin, Popconfirm, Typography } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { List, Button, Empty, Spin, Popconfirm, Typography, message } from 'antd';
 import { DeleteOutlined, ReloadOutlined, ApartmentOutlined, ImportOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
 export default function FaultTreeLibraryPanel({ onLoadTree }) {
+  const navigate = useNavigate();
   const [trees, setTrees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -26,8 +28,19 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
 
   const handleLoad = async (tree) => {
     setLoadingId(tree.id);
-    // 使用列表中的完整树数据直接加载，无需额外请求
-    onLoadTree && onLoadTree(tree);
+    if (onLoadTree) {
+      onLoadTree(tree);
+      setLoadingId(null);
+      return;
+    }
+
+    if (!tree.conversation_id) {
+      message.warning('该故障树未关联对话，暂不支持通过页面路由打开');
+      setLoadingId(null);
+      return;
+    }
+
+    navigate(`/flow/${tree.conversation_id}/${tree.id}`);
     setLoadingId(null);
   };
 

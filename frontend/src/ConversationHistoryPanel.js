@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { List, Button, Empty, Spin, Popconfirm, Typography } from 'antd';
 import { DeleteOutlined, ReloadOutlined, MessageOutlined, PlayCircleOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
 export default function ConversationHistoryPanel({ onSelectConversation, refreshTrigger }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -21,7 +24,7 @@ export default function ConversationHistoryPanel({ onSelectConversation, refresh
     }
   };
 
-  useEffect(() => { fetchConversations(); }, []);
+  useEffect(() => { fetchConversations(); }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 当外部触发刷新时重新拉取
   useEffect(() => {
@@ -38,6 +41,14 @@ export default function ConversationHistoryPanel({ onSelectConversation, refresh
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleSelect = (id) => {
+    if (onSelectConversation) {
+      onSelectConversation(id);
+      return;
+    }
+    navigate(`/flow/${id}`);
   };
 
   return (
@@ -69,7 +80,7 @@ export default function ConversationHistoryPanel({ onSelectConversation, refresh
                       icon={<PlayCircleOutlined />}
                       style={{ color: '#40b586' }}
                       title="继续该对话"
-                      onClick={() => onSelectConversation && onSelectConversation(conv.id)}
+                      onClick={() => handleSelect(conv.id)}
                     />,
                     <Popconfirm
                       key="del"
