@@ -167,7 +167,7 @@ class FaultTreeSkill:
 
     def _parse_tree_data(self, arguments: dict) -> tuple[str, list[FaultTreeNode], list[FaultTreeEdge]]:
         """从 function call 参数解析故障树结构。"""
-        name = arguments["name"]
+        name = arguments.get("name") or "未命名故障树"
         nodes = []
         for n in arguments.get("nodes", []):
             gate_type = GateType(n["gate_type"]) if n.get("gate_type") else None

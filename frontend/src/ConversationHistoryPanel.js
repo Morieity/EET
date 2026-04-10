@@ -4,7 +4,7 @@ import { DeleteOutlined, ReloadOutlined, MessageOutlined, PlayCircleOutlined } f
 
 const { Text } = Typography;
 
-export default function ConversationHistoryPanel({ onSelectConversation }) {
+export default function ConversationHistoryPanel({ onSelectConversation, refreshTrigger }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -22,6 +22,11 @@ export default function ConversationHistoryPanel({ onSelectConversation }) {
   };
 
   useEffect(() => { fetchConversations(); }, []);
+
+  // 当外部触发刷新时重新拉取
+  useEffect(() => {
+    if (refreshTrigger > 0) fetchConversations();
+  }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (id) => {
     setDeletingId(id);
@@ -92,7 +97,7 @@ export default function ConversationHistoryPanel({ onSelectConversation }) {
                     }
                     description={
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {conv.rounds?.length || 0} 轮 · {new Date(conv.created_at).toLocaleDateString()}
+                        {conv.round_count ?? conv.rounds?.length ?? 0} 轮 · {new Date(conv.created_at).toLocaleDateString()}
                       </Text>
                     }
                   />

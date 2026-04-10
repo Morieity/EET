@@ -80,6 +80,181 @@ export const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 };
 
 /**
+ * 将 LLM 输出的 fault_tree 格式 (top_event/gates/basic_events)
+ * 转换为标准后端格式 { name, nodes, edges }。
+ */
+function convertLLMFormatToStandard(raw) {
+  const nodes = [];
+  const edges = [];
+  let edgeId = 0;
+
+  const topEvent = raw.top_event;
+  const gates = raw.gates || [];
+  const basicEvents = raw.basic_events || raw.events || [];
+  const gateIds = new Set(gates.map((g) => g.id));
+
+  // 顶层事件
+  if (topEvent) {
+    nodes.push({
+      id: topEvent.id,
+      node_type: 'event',
+      label: topEvent.description || topEvent.label || topEvent.id,
+      remark: '',
+    });
+    // 顶层事件连接到第一个门
+    if (!gateIds.has(topEvent.id) && gates.length > 0) {
+      edges.push({ id: `e-${edgeId++}`, source_id: topEvent.id, target_id: gates[0].id });
+    }
+  }
+
+  // 逻辑门
+  gates.forEach((g) => {
+    const existing = nodes.find((n) => n.id === g.id);
+    if (existing) {
+      existing.node_type = 'gate';
+      existing.gate_type = (g.type || g.gate_type || 'OR').toUpperCase();
+    } else {
+      nodes.push({
+        id: g.id,
+        node_type: 'gate',
+        label: g.description || g.label || g.id,
+        gate_type: (g.type || g.gate_type || 'OR').toUpperCase(),
+        remark: '',
+      });
+    }
+    (g.inputs || []).forEach((inputId) => {
+      edges.push({ id: `e-${edgeId++}`, source_id: g.id, target_id: inputId });
+    });
+  });
+
+  // 基本事件
+  basicEvents.forEach((ev) => {
+    if (!nodes.find((n) => n.id === ev.id)) {
+      nodes.push({
+        id: ev.id,
+        node_type: 'event',
+        label: ev.description || ev.label || ev.id,
+        remark: ev.remark || '',
+      });
+    }
+  });
+
+  // 被引用但未声明的节点补全
+  edges.forEach((e) => {
+    if (!nodes.find((n) => n.id === e.target_id)) {
+      nodes.push({ id: e.target_id, node_type: 'event', label: e.target_id, remark: '' });
+    }
+  });
+
+  return { name: raw.name || topEvent?.description || '故障树分析', nodes, edges };
+}
+
+/**
+ * 尝试将任意 JSON 对象标准化为 { name, nodes, edges } 格式。
+ * 支持后端格式和 LLM 格式。
+ */
+function normalizeFaultTree(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const raw = obj.fault_tree || obj;
+  // 标准后端格式
+  if (Array.isArray(raw.nodes) && Array.isArray(raw.edges)) return raw;
+  // LLM 格式
+  if (raw.top_event || raw.gates) return convertLLMFormatToStandard(raw);
+  return null;
+}
+
+/**
+ * 从 LLM 文本回复中提取故障树 JSON 并转为标准格式。
+ * 返回 { tree, cleanedContent } 或 null。
+ */
+export const extractFaultTreeFromText = (content) => {
+  if (!content) return null;
+
+  // 1. 尝试 ```json ... ``` 代码块
+  const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)```/g;
+  let match;
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      const tree = normalizeFaultTree(parsed);
+      if (tree) {
+        const cleanedContent = content.replace(match[0], '').trim();
+        return { tree, cleanedContent };
+      }
+    } catch { /* not valid JSON, skip */ }
+  }
+
+  // 2. 尝试裸 JSON（从第一个 { 到最后一个 }）
+  const firstBrace = content.indexOf('{');
+  if (firstBrace >= 0) {
+    const lastBrace = content.lastIndexOf('}');
+    if (lastBrace > firstBrace) {
+      const jsonStr = content.substring(firstBrace, lastBrace + 1);
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const tree = normalizeFaultTree(parsed);
+        if (tree) {
+          const cleanedContent = (content.substring(0, firstBrace) + content.substring(lastBrace + 1)).trim();
+          return { tree, cleanedContent };
+        }
+      } catch { /* not valid JSON, skip */ }
+    }
+  }
+
+  return null;
+};
+
+/**
+ * 将后端故障树 nodes/edges 转换为 antd Tree 的 treeData 格式。
+ * 返回数组，每项: { key, title, description, children }
+ */
+export const convertFaultTreeToTreeData = (faultTree) => {
+  const rawNodes = faultTree.nodes || [];
+  const rawEdges = faultTree.edges || [];
+
+  // 建立节点索引
+  const nodeMap = {};
+  rawNodes.forEach((n) => { nodeMap[n.id] = n; });
+
+  // 建立 parent -> children 映射（source_id -> [target_id]）
+  const childrenMap = {};
+  const hasIncoming = new Set();
+  rawEdges.forEach((e) => {
+    const src = e.source_id || e.source;
+    const tgt = e.target_id || e.target;
+    if (!childrenMap[src]) childrenMap[src] = [];
+    childrenMap[src].push(tgt);
+    hasIncoming.add(tgt);
+  });
+
+  // 找到根节点（没有入边的节点）
+  const roots = rawNodes.filter((n) => !hasIncoming.has(n.id));
+
+  const buildTree = (nodeId) => {
+    const n = nodeMap[nodeId];
+    if (!n) return null;
+    const isGate = n.node_type === 'gate';
+    const label = n.label || n.id;
+    const desc = isGate
+      ? (n.gate_type || 'OR')
+      : (n.remark || '');
+    const children = (childrenMap[nodeId] || [])
+      .map(buildTree)
+      .filter(Boolean);
+    return {
+      key: n.id,
+      title: label,
+      description: desc,
+      isGate,
+      gateType: isGate ? (n.gate_type || 'OR') : undefined,
+      children: children.length ? children : undefined,
+    };
+  };
+
+  return roots.map((r) => buildTree(r.id)).filter(Boolean);
+};
+
+/**
  * 将后端故障树数据转换为 React Flow 节点和边
  * 后端格式: { nodes: [{id, type:"event"/"gate", data:{label, remark, gateType}}], edges: [{id, source, target}] }
  * React Flow 格式: nodes 包含 type:"textUpdater"/"gate"，edges 包含 type:"smoothstep"

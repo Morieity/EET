@@ -42,6 +42,7 @@ class Conversation:
         self.name = name
         self.created_at = created_at or datetime.now()
         self.rounds = rounds or []
+        self.round_count = len(self.rounds)
 
     def add_round(self, chat_round: ChatRound) -> None:
         self.rounds.append(chat_round)
@@ -52,4 +53,5 @@ class Conversation:
             "name": self.name,
             "created_at": self.created_at.isoformat(),
             "rounds": [r.to_dict() for r in self.rounds],
+            "round_count": getattr(self, 'round_count', len(self.rounds)),
         }

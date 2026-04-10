@@ -45,16 +45,20 @@ class SQLiteConversationRepository(IConversationRepository):
         conn = get_connection()
         try:
             rows = conn.execute(
-                "SELECT id, name, created_at FROM conversations ORDER BY created_at DESC"
+                "SELECT c.id, c.name, c.created_at, "
+                "(SELECT COUNT(*) FROM chat_rounds WHERE conversation_id = c.id) AS round_count "
+                "FROM conversations c ORDER BY c.created_at DESC"
             ).fetchall()
-            return [
-                Conversation(
+            convs = []
+            for row in rows:
+                conv = Conversation(
                     conversation_id=row["id"],
                     name=row["name"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                 )
-                for row in rows
-            ]
+                conv.round_count = row["round_count"]
+                convs.append(conv)
+            return convs
         finally:
             conn.close()
 
