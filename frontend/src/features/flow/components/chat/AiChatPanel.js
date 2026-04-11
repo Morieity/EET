@@ -18,7 +18,9 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
   const [messages, setMessages] = useState(createAssistantMessage(DEFAULT_WELCOME_MESSAGE));
   const [inputText, setInputText] = useState('');
   const [conversationId, setConversationIdRaw] = useState(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const abortControllerRef = useRef(null);
   const conversationIdRef = useRef(null);
 
@@ -40,12 +42,27 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
 
   const isLoading = isStreaming;
 
-  // 每次消息更新后自动滚动到底部
+  // 检测用户是否向上滚动
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    
+    const container = messagesContainerRef.current;
+    // 获取当前滚动位置和容器高度
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    // 如果用户滚动到底部附近（距离底部 100px 以内），启用自动滚动
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    setShouldAutoScroll(isNearBottom);
+  }, []);
+
+  // 每次消息更新后自动滚动到底部（如果用户在底部）
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (shouldAutoScroll && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, shouldAutoScroll]);
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -128,7 +145,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <RobotOutlined style={{ fontSize: 18, color: 'var(--fc-accent)' }} />
-          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--fc-text-primary)' }}>故障诊断助手</span>
+          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--fc-text-primary)' }}>青色交流电灯</span>
         </div>
         {conversationId && (
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleNewSession}>
@@ -151,7 +168,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       )}
 
       {/* 聊天记录 */}
-      <div className="fc-chat-messages">
+      <div className="fc-chat-messages" ref={messagesContainerRef} onScroll={handleScroll}>
         <div className="fc-msg-inner">
         {messages.length === 0 && (
           <Empty description="开始一段故障诊断对话" image={Empty.PRESENTED_IMAGE_SIMPLE} />

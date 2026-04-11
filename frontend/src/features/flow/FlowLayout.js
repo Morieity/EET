@@ -3,7 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { Button, Tooltip, Typography } from 'antd';
 import {
   HomeOutlined, PlusOutlined, ApartmentOutlined,
-  MenuFoldOutlined, MenuUnfoldOutlined,
+  MenuOutlined, MessageOutlined, FileOutlined,
 } from '@ant-design/icons';
 import FileListPanel from './components/sidebar/FileListPanel';
 import ConversationHistoryPanel from './components/sidebar/ConversationHistoryPanel';
@@ -45,17 +45,53 @@ export default function Flow() {
     document.addEventListener('mouseup', onMouseUp);
   }, [sidebarWidth]);
 
+  const tabs = [
+    { key: 'history', label: '对话', icon: <MessageOutlined /> },
+    { key: 'files', label: '文件', icon: <FileOutlined /> },
+    { key: 'trees', label: '故障树', icon: <ApartmentOutlined /> },
+  ];
+
   return (
     <div className="fc-layout">
-      {/* ========== 左侧深色边栏 ========== */}
+      {/* ========== 左侧侧边栏 ========== */}
       <div
         className={`fc-sidebar ${sidebarCollapsed ? 'fc-sidebar--collapsed' : ''}`}
         style={sidebarCollapsed ? undefined : { width: sidebarWidth, minWidth: sidebarWidth }}
       >
+        {/* 收起态：窄图标栏 */}
+        <div className="fc-sidebar-icon-rail">
+          <Tooltip title="展开侧边栏" placement="right">
+            <Button type="text" icon={<MenuOutlined />}
+              onClick={() => setSidebarCollapsed(false)} />
+          </Tooltip>
+          <Tooltip title="新建对话" placement="right">
+            <Button type="text" icon={<PlusOutlined />}
+              onClick={handleNewChat} />
+          </Tooltip>
+          <div className="fc-rail-divider" />
+          {tabs.map(tab => (
+            <Tooltip key={tab.key} title={tab.label} placement="right">
+              <Button type="text" icon={tab.icon}
+                style={sidebarTab === tab.key ? { background: 'var(--fc-sidebar-active-bg)', color: 'var(--fc-accent)' } : undefined}
+                onClick={() => { setSidebarTab(tab.key); setSidebarCollapsed(false); }} />
+            </Tooltip>
+          ))}
+          <div style={{ flex: 1 }} />
+          <Tooltip title="返回首页" placement="right">
+            <Button type="text" icon={<HomeOutlined />}
+              onClick={() => navigate('/')} />
+          </Tooltip>
+        </div>
+
+        {/* 展开态：完整内容 */}
         {/* 边栏顶部 */}
         <div className="fc-sidebar-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ApartmentOutlined style={{ fontSize: 18, color: 'var(--fc-accent)' }} />
+            <Tooltip title="收起侧边栏">
+              <Button type="text" size="small" icon={<MenuOutlined />}
+                className="fc-sidebar-toggle"
+                onClick={() => setSidebarCollapsed(true)} />
+            </Tooltip>
             <Text strong style={{ fontSize: 15, color: 'var(--fc-sidebar-text)' }}>故障树诊断</Text>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -70,27 +106,13 @@ export default function Flow() {
           </div>
         </div>
 
-        {/* 边栏 Tab 栏 */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--fc-sidebar-border)', flexShrink: 0 }}>
-          {[
-            { key: 'history', label: '对话' },
-            { key: 'files', label: '文件' },
-            { key: 'trees', label: '故障树' },
-          ].map(tab => (
+        {/* 边栏 Tab 栏 — pill 样式 */}
+        <div className="fc-sidebar-tabs">
+          {tabs.map(tab => (
             <div
               key={tab.key}
               onClick={() => setSidebarTab(tab.key)}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                padding: '8px 4px',
-                fontSize: 12,
-                cursor: 'pointer',
-                fontWeight: sidebarTab === tab.key ? 600 : 400,
-                color: sidebarTab === tab.key ? 'var(--fc-accent)' : 'var(--fc-sidebar-text-muted)',
-                borderBottom: sidebarTab === tab.key ? '2px solid var(--fc-accent)' : '2px solid transparent',
-                userSelect: 'none',
-              }}
+              className={`fc-sidebar-tab ${sidebarTab === tab.key ? 'fc-sidebar-tab--active' : ''}`}
             >
               {tab.label}
             </div>
@@ -115,17 +137,7 @@ export default function Flow() {
       )}
 
       {/* ========== 右侧主区域 ========== */}
-      <div className="fc-main" style={{ position: 'relative' }}>
-        {/* 折叠按钮 */}
-        <Tooltip title={sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}>
-          <Button
-            type="text"
-            size="small"
-            icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setSidebarCollapsed(c => !c)}
-            className="fc-collapse-btn"
-          />
-        </Tooltip>
+      <div className="fc-main">
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Outlet />
         </div>

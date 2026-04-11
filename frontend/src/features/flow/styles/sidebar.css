@@ -1,5 +1,5 @@
 /* ================================================
-   sidebar.css — 侧栏面板 + Antd 深色主题覆盖
+   sidebar.css — 侧栏面板 + Antd 浅绿主题覆盖
    ================================================ */
 
 .fc-sidebar .ant-btn-text {
@@ -12,26 +12,33 @@
 }
 
 .fc-sidebar .ant-list-item-meta-title {
-  color: var(--fc-sidebar-text) !important;
+  color: var(--fc-sidebar-text);
 }
 
 .fc-sidebar .ant-list-item-meta-description {
-  color: var(--fc-sidebar-text-muted) !important;
+  color: var(--fc-sidebar-text-muted);
 }
 
 .fc-sidebar .ant-empty-description {
-  color: var(--fc-sidebar-text-muted) !important;
+  color: var(--fc-sidebar-text-muted);
 }
 
 .fc-sidebar .ant-list-item {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
   cursor: pointer;
   border-bottom: none !important;
+  transition: background 0.15s;
 }
 
 .fc-sidebar .ant-list-item:hover {
   background: var(--fc-sidebar-hover-bg);
+}
+
+/* 当前活跃对话高亮 */
+.fc-sidebar .ant-list-item.fc-list-item--active {
+  background: var(--fc-sidebar-active-bg);
+  border-left: 3px solid var(--fc-accent);
 }
 
 /* 防止操作按钮和标题重叠 */
@@ -55,5 +62,5 @@
 }
 
 .fc-sidebar .ant-typography.ant-typography-secondary {
-  color: var(--fc-sidebar-text-muted) !important;
+  color: var(--fc-sidebar-text-muted);
 }

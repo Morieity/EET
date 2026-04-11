@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List, Button, Empty, Spin, Popconfirm, Typography, message } from 'antd';
-import { DeleteOutlined, ReloadOutlined, ApartmentOutlined, ImportOutlined } from '@ant-design/icons';
+import { List, Button, Empty, Spin, Dropdown, Modal, Typography, message } from 'antd';
+import { MoreOutlined, ReloadOutlined, ApartmentOutlined, InfoCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getFaultTrees, deleteFaultTree } from '../../services/faultTreeApi';
 
 const { Text } = Typography;
@@ -11,7 +11,6 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
   const [trees, setTrees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
 
   const fetchTrees = async () => {
     setLoading(true);
@@ -27,22 +26,18 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
 
   useEffect(() => { fetchTrees(); }, []);
 
-  const handleLoad = async (tree) => {
-    setLoadingId(tree.id);
+  const handleLoad = (tree) => {
     if (onLoadTree) {
       onLoadTree(tree);
-      setLoadingId(null);
       return;
     }
 
     if (!tree.conversation_id) {
       message.warning('该故障树未关联对话，暂不支持通过页面路由打开');
-      setLoadingId(null);
       return;
     }
 
     navigate(`/flow/${tree.conversation_id}/${tree.id}`);
-    setLoadingId(null);
   };
 
   const handleDelete = async (id) => {
@@ -61,7 +56,7 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
     <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ApartmentOutlined style={{ fontSize: 14, color: '#8e44ad' }} />
+          <ApartmentOutlined style={{ fontSize: 14, color: 'var(--fc-accent)' }} />
           <Text strong style={{ fontSize: 13 }}>故障树库</Text>
         </div>
         <Button type="text" size="small" icon={<ReloadOutlined />} onClick={fetchTrees} loading={loading} />
@@ -75,52 +70,67 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
             <List
               size="small"
               dataSource={trees}
-              renderItem={(tree) => (
-                <List.Item
-                  style={{ padding: '8px 0' }}
-                  actions={[
-                    <Button
-                      key="load"
-                      type="text"
-                      size="small"
-                      icon={<ImportOutlined />}
-                      style={{ color: '#8e44ad' }}
-                      title="加载到画布"
-                      loading={loadingId === tree.id}
-                      onClick={() => handleLoad(tree)}
-                    />,
-                    <Popconfirm
-                      key="del"
-                      title="确认删除该故障树？"
-                      onConfirm={() => handleDelete(tree.id)}
-                      okText="删除"
-                      cancelText="取消"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        loading={deletingId === tree.id}
-                      />
-                    </Popconfirm>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: tree.name }}>
-                        {tree.name}
-                      </Text>
-                    }
-                    description={
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {tree.nodes?.length || 0} 节点 · {new Date(tree.created_at).toLocaleDateString()}
-                      </Text>
-                    }
-                  />
-                </List.Item>
-              )}
+              renderItem={(tree) => {
+                const menuItems = [
+                  {
+                    key: 'info',
+                    icon: <InfoCircleOutlined />,
+                    label: '信息',
+                    onClick: ({ domEvent }) => {
+                      domEvent.stopPropagation();
+                      Modal.info({
+                        title: tree.name,
+                        content: (
+                          <div>
+                            <p>节点数：{tree.nodes?.length || 0}</p>
+                            <p>创建日期：{new Date(tree.created_at).toLocaleDateString()}</p>
+                          </div>
+                        ),
+                      });
+                    },
+                  },
+                  { type: 'divider' },
+                  {
+                    key: 'delete',
+                    icon: <DeleteOutlined />,
+                    label: '删除故障树',
+                    danger: true,
+                    onClick: ({ domEvent }) => {
+                      domEvent.stopPropagation();
+                      Modal.confirm({
+                        title: '确认删除该故障树？',
+                        okText: '删除',
+                        cancelText: '取消',
+                        okButtonProps: { danger: true },
+                        onOk: () => handleDelete(tree.id),
+                      });
+                    },
+                  },
+                ];
+                return (
+                  <List.Item
+                    onClick={() => handleLoad(tree)}
+                    style={{ padding: '8px 12px', cursor: 'pointer' }}
+                    actions={[
+                      <Dropdown key="more" menu={{ items: menuItems }} trigger={['click']}
+                        placement="bottomRight">
+                        <Button type="text" size="small" icon={<MoreOutlined />}
+                          onClick={(e) => e.stopPropagation()}
+                          loading={deletingId === tree.id}
+                          style={{ color: 'var(--fc-sidebar-text-muted)' }} />
+                      </Dropdown>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={
+                        <Text style={{ fontSize: 13 }} ellipsis={{ tooltip: tree.name }}>
+                          {tree.name}
+                        </Text>
+                      }
+                    />
+                  </List.Item>
+                );
+              }}
             />
           )}
         </Spin>
