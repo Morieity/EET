@@ -5,10 +5,11 @@ import {
   HomeOutlined, PlusOutlined, ApartmentOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
 } from '@ant-design/icons';
-import FileListPanel from './FileListPanel';
-import ConversationHistoryPanel from './ConversationHistoryPanel';
-import FaultTreeLibraryPanel from './FaultTreeLibraryPanel';
-import './flow-chat.css';
+import FileListPanel from './components/sidebar/FileListPanel';
+import ConversationHistoryPanel from './components/sidebar/ConversationHistoryPanel';
+import FaultTreeLibraryPanel from './components/sidebar/FaultTreeLibraryPanel';
+import './styles/layout.css';
+import './styles/sidebar.css';
 
 const { Text } = Typography;
 

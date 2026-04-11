@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Typography, Alert, Tag } from 'antd';
 import { InboxOutlined, FileTextOutlined, CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { uploadFile } from '../../services/fileApi';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -42,27 +43,17 @@ export default function DocumentUploadPanel({ onUploadSuccess }) {
     setUploadResult(null);
     setFileStatus(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/api/files', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-      if (response.ok || response.status === 202) {
-        setUploadResult({ success: true, file_name: data.file_name, file_id: data.id });
-        setFileStatus(data.status);
-        onSuccess(data);
-        watchStatus(data.file_name);
-        if (onUploadSuccess) onUploadSuccess();
-      } else {
-        setUploadResult({ error: data.error || `上传失败 (${response.status})` });
-        onError(new Error(data.error));
-      }
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await uploadFile(formData);
+      setUploadResult({ success: true, file_name: data.file_name, file_id: data.id });
+      setFileStatus(data.status);
+      onSuccess(data);
+      watchStatus(data.file_name);
+      if (onUploadSuccess) onUploadSuccess();
     } catch (error) {
-      setUploadResult({ error: `网络错误：${error.message}` });
+      setUploadResult({ error: error.message });
       onError(error);
     } finally {
       setIsUploading(false);

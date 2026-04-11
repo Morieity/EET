@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { List, Button, Tag, Empty, Spin, Popconfirm, Typography } from 'antd';
 import { DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import DocumentUploadPanel from './DocumentUploadPanel';
+import { getFiles, deleteFile } from '../../services/fileApi';
 
 const { Text } = Typography;
 
@@ -19,8 +20,8 @@ export default function FileListPanel() {
   const fetchFiles = async () => {
     setLoading(true);
     try {
-      const resp = await fetch('/api/files');
-      if (resp.ok) setFiles(await resp.json());
+      const data = await getFiles();
+      setFiles(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -33,8 +34,8 @@ export default function FileListPanel() {
   const handleDelete = async (fileName) => {
     setDeletingName(fileName);
     try {
-      const resp = await fetch(`/api/files/${encodeURIComponent(fileName)}`, { method: 'DELETE' });
-      if (resp.ok) setFiles(prev => prev.filter(f => f.file_name !== fileName));
+      await deleteFile(fileName);
+      setFiles(prev => prev.filter(f => f.file_name !== fileName));
     } catch (e) {
       console.error(e);
     } finally {

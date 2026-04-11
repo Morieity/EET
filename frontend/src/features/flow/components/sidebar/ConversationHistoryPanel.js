@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { List, Button, Empty, Spin, Popconfirm, Typography } from 'antd';
 import { DeleteOutlined, ReloadOutlined, MessageOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { getConversations, deleteConversation } from '../../services/conversationApi';
 
 const { Text } = Typography;
 
@@ -15,8 +16,8 @@ export default function ConversationHistoryPanel({ onSelectConversation, refresh
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      const resp = await fetch('/api/conversations');
-      if (resp.ok) setConversations(await resp.json());
+      const data = await getConversations();
+      setConversations(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -34,8 +35,8 @@ export default function ConversationHistoryPanel({ onSelectConversation, refresh
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      const resp = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      if (resp.ok) setConversations(prev => prev.filter(c => c.id !== id));
+      await deleteConversation(id);
+      setConversations(prev => prev.filter(c => c.id !== id));
     } catch (e) {
       console.error(e);
     } finally {

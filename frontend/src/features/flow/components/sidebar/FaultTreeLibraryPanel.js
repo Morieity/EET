@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { List, Button, Empty, Spin, Popconfirm, Typography, message } from 'antd';
 import { DeleteOutlined, ReloadOutlined, ApartmentOutlined, ImportOutlined } from '@ant-design/icons';
+import { getFaultTrees, deleteFaultTree } from '../../services/faultTreeApi';
 
 const { Text } = Typography;
 
@@ -15,8 +16,8 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
   const fetchTrees = async () => {
     setLoading(true);
     try {
-      const resp = await fetch('/api/fault-trees');
-      if (resp.ok) setTrees(await resp.json());
+      const data = await getFaultTrees();
+      setTrees(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -47,8 +48,8 @@ export default function FaultTreeLibraryPanel({ onLoadTree }) {
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      const resp = await fetch(`/api/fault-trees/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      if (resp.ok) setTrees(prev => prev.filter(t => t.id !== id));
+      await deleteFaultTree(id);
+      setTrees(prev => prev.filter(t => t.id !== id));
     } catch (e) {
       console.error(e);
     } finally {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Network, Shield, Zap, CheckCircle2, GitBranch, TrendingUp, Users, Award, Sparkles, Code, FileJson } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { Button } from '../../ui/button';
+import { Card } from '../../ui/card';
+import { ImageWithFallback } from '../../ui/ImageWithFallback';
 import { motion } from 'motion/react';
 
 export default function Home() {

@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Button, Tooltip, Typography, Tree, Tag, message } from 'antd';
 import { CloudUploadOutlined, ApartmentOutlined, BranchesOutlined } from '@ant-design/icons';
-import { convertFaultTreeToTreeData } from './utils';
-import './flow-chat.css';
+import { convertFaultTreeToTreeData } from '../../utils/faultTreeConverter';
+import { updateFaultTree } from '../../services/faultTreeApi';
+import '../../styles/chat.css';
 
 const { Text } = Typography;
 
@@ -77,19 +78,9 @@ export default function FaultTreeCard({ tree, onSaveSuccess, onView }) {
         id: e.id, source_id: e.source_id, target_id: e.target_id,
       }));
       const payload = { name: tree.name || '未命名故障树', nodes: treeNodes, edges: treeEdges };
-
-      const resp = await fetch(`/api/fault-trees/${encodeURIComponent(tree.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (resp.ok) {
-        message.success('故障树已保存');
-        onSaveSuccess?.();
-      } else {
-        const err = await resp.json().catch(() => ({}));
-        message.error(`保存失败: ${err.error || err.message || resp.status}`);
-      }
+      await updateFaultTree(tree.id, payload);
+      message.success('故障树已保存');
+      onSaveSuccess?.();
     } catch (error) {
       message.error(`保存失败: ${error.message}`);
     } finally {

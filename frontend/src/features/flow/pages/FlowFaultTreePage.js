@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button, Result, Spin } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import FaultTreeWorkspace from './FaultTreeWorkspace';
+import FaultTreeWorkspace from '../components/tree/FaultTreeWorkspace';
+import { getFaultTree } from '../services/faultTreeApi';
 
 export default function FlowFaultTreePage() {
   const navigate = useNavigate();
@@ -26,16 +27,7 @@ export default function FlowFaultTreePage() {
       setError(null);
 
       try {
-        const resp = await fetch(`/api/fault-trees/${encodeURIComponent(treeId)}`);
-        if (!resp.ok) {
-          if (cancelled) return;
-          setTree(null);
-          setError('not-found');
-          setLoading(false);
-          return;
-        }
-
-        const nextTree = await resp.json();
+        const nextTree = await getFaultTree(treeId);
         if (cancelled) return;
 
         if (nextTree.conversation_id && nextTree.conversation_id !== conversationId) {
@@ -53,7 +45,7 @@ export default function FlowFaultTreePage() {
         if (cancelled) return;
         console.error('加载故障树失败', fetchError);
         setTree(null);
-        setError('load-failed');
+        setError(fetchError.message?.includes('404') ? 'not-found' : 'load-failed');
         setLoading(false);
       }
     };
