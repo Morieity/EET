@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS chat_rounds (
     prompt TEXT NOT NULL,
     answer TEXT NOT NULL,
     sources TEXT,
+    fault_tree_id TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
@@ -81,6 +82,15 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _ensure_column_exists(conn: sqlite3.Connection, table_name: str, column_name: str, column_def: str) -> None:
+    existing_columns = {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in existing_columns:
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+
+
 def init_db() -> None:
     conn = get_connection()
     try:
@@ -91,6 +101,7 @@ def init_db() -> None:
             conn.execute(_CREATE_FAULT_TREES_SQL)
             conn.execute(_CREATE_FAULT_TREE_NODES_SQL)
             conn.execute(_CREATE_FAULT_TREE_EDGES_SQL)
+            _ensure_column_exists(conn, "chat_rounds", "fault_tree_id", "TEXT")
             conn.commit()
     finally:
         conn.close()

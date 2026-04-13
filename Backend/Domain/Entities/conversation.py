@@ -9,6 +9,7 @@ class ChatRound:
         prompt: str = "",
         answer: str = "",
         sources: list[dict] | None = None,
+        fault_tree_id: str | None = None,
         round_id: str | None = None,
         created_at: datetime | None = None,
     ):
@@ -17,6 +18,7 @@ class ChatRound:
         self.prompt = prompt
         self.answer = answer
         self.sources = sources or []
+        self.fault_tree_id = fault_tree_id
         self.created_at = created_at or datetime.now()
 
     def to_dict(self) -> dict:
@@ -26,6 +28,7 @@ class ChatRound:
             "prompt": self.prompt,
             "answer": self.answer,
             "sources": self.sources,
+            "fault_tree_id": self.fault_tree_id,
             "created_at": self.created_at.isoformat(),
         }
 
@@ -42,6 +45,7 @@ class Conversation:
         self.name = name
         self.created_at = created_at or datetime.now()
         self.rounds = rounds or []
+        self.round_count = len(self.rounds)
 
     def add_round(self, chat_round: ChatRound) -> None:
         self.rounds.append(chat_round)
@@ -52,4 +56,5 @@ class Conversation:
             "name": self.name,
             "created_at": self.created_at.isoformat(),
             "rounds": [r.to_dict() for r in self.rounds],
+            "round_count": getattr(self, 'round_count', len(self.rounds)),
         }

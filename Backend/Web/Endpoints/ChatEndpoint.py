@@ -37,7 +37,7 @@ def create_chat_blueprint(
           仅当本轮对话触发故障树工具时发送，`fault_tree` 的结构与
           `/api/fault-trees/<tree_id>` 返回体一致。
         - `token`: {"content": str}
-        - `done`: {"conversation_id": str, "answer": str}
+                - `done`: {"conversation_id": str, "answer": str, "fault_tree_id": str | null}
         - `error`: {"message": str}
         """
         data = request.get_json(silent=True) or {}
@@ -85,6 +85,7 @@ def create_chat_blueprint(
                         {"file_name": str, "page_content": str, "score": float},
                         ...
                     ],
+                    "fault_tree_id": str | null,
                     "created_at": ISO8601 字符串,
                 },
                 ...

@@ -1,6 +1,6 @@
 import re
-import json
 import logging
+import threading
 from collections.abc import Generator
 from Backend.Domain.Entities.conversation import Conversation, ChatRound
 from Backend.Application.Interfaces.IConversationRepository import IConversationRepository
@@ -116,79 +116,91 @@ class ChatUseCase:
 
         messages.append({"role": "user", "content": user_content})
 
-        # 4. 通过关键词快速判断是否需要生成/修改故障树
+        # 4. 判断是否为故障树请求，若是则异步生成，同时流式输出普通对话
         generate_match = _FAULT_TREE_GENERATE_PATTERN.search(question)
         update_match = _FAULT_TREE_UPDATE_PATTERN.search(question)
+        is_fault_tree_request = bool(generate_match or update_match)
 
-        if generate_match:
-            tool_result = {
-                "type": "tool_call",
-                "name": "generate_fault_tree",
-                "arguments": {"description": question},
-            }
-        elif update_match:
-            tool_result = {
-                "type": "tool_call",
-                "name": "update_fault_tree",
-                "arguments": {"description": question},
-            }
-        else:
-            tool_result = {"type": "text"}
+        full_answer = ""
+        fault_tree_id: str | None = None
 
-        if tool_result["type"] == "tool_call":
-            # LLM 决定调用故障树工具
-            func_name = tool_result["name"]
-            func_args = tool_result["arguments"]
-            logger.info("Function call triggered: %s", func_name)
+        if is_fault_tree_request:
+            # 构建带工具指令的 messages，供后台 function calling 使用
+            tool_instruction = (
+                "当前用户明确要求生成故障树。请调用 generate_fault_tree 工具，"
+                "并返回完整的 name、nodes、edges 结构。"
+                if generate_match
+                else
+                "当前用户明确要求修改已有故障树。请调用 update_fault_tree 工具，"
+                "并返回修改后的完整 name、nodes、edges 结构。"
+            )
+            tool_messages = messages.copy()
+            tool_messages[0] = {
+                "role": "system",
+                "content": f"{system_content}\n\n{tool_instruction}",
+            }
+
+            # 后台异步执行 function calling + 故障树生成
+            fault_tree_container: list = [None]
+            async_done = threading.Event()
+
+            def _generate_fault_tree_async() -> None:
+                try:
+                    tool_result = self._llm.chat_with_tools(
+                        tool_messages,
+                        self._fault_tree_skill.tools,
+                    )
+                    if tool_result["type"] == "tool_call":
+                        ft = self._fault_tree_skill.execute(
+                            function_name=tool_result["name"],
+                            arguments=tool_result["arguments"],
+                            conversation_id=conversation.id,
+                        )
+                        fault_tree_container[0] = ft
+                        logger.info("Async fault tree generated: %s (id=%s)", ft.name, ft.id)
+                    else:
+                        logger.warning(
+                            "Fault tree intent detected but model did not call a tool: %s",
+                            question,
+                        )
+                except Exception:
+                    logger.exception("Async fault tree generation failed")
+                finally:
+                    async_done.set()
+
+            thread = threading.Thread(target=_generate_fault_tree_async, daemon=True)
+            thread.start()
+
+            # 前台同步流式普通对话（让 LLM 先做自然语言分析）
+            stream_system = (
+                f"{system_content}\n\n"
+                "用户请求生成故障树，请先用自然语言简要分析故障场景和原因，"
+                "不要在回复中输出任何JSON代码、代码块或故障树数据结构，"
+                "不必在文字中描述节点结构，故障树图将在本次回复结束后自动附加展示。"
+            )
+            stream_messages = messages.copy()
+            stream_messages[0] = {"role": "system", "content": stream_system}
 
             try:
-                fault_tree = self._fault_tree_skill.execute(
-                    function_name=func_name,
-                    arguments=func_args,
-                    conversation_id=conversation.id,
-                )
-                yield {"type": "fault_tree", "fault_tree": fault_tree.to_dict()}
-
-                # 生成一段文字描述作为 answer，并流式输出
-                tree_summary = self._build_tree_summary(fault_tree, func_name)
-                full_answer = ""
-                # 再让 LLM 生成一段自然语言说明
-                summary_messages = messages.copy()
-                summary_messages.append({
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [{
-                        "id": "call_1",
-                        "type": "function",
-                        "function": {
-                            "name": func_name,
-                            "arguments": json.dumps(func_args, ensure_ascii=False),
-                        },
-                    }],
-                })
-                summary_messages.append({
-                    "role": "tool",
-                    "tool_call_id": "call_1",
-                    "content": json.dumps(fault_tree.to_dict(), ensure_ascii=False),
-                })
-
-                try:
-                    for token in self._llm.stream_chat(summary_messages):
-                        full_answer += token
-                        yield {"type": "token", "content": token}
-                except Exception:
-                    # 如果摘要生成失败，使用预构建的摘要
-                    logger.exception("Summary stream failed, using built-in summary")
-                    full_answer = tree_summary
-                    yield {"type": "token", "content": full_answer}
-
+                for token in self._llm.stream_chat(stream_messages):
+                    full_answer += token
+                    yield {"type": "token", "content": token}
             except Exception:
-                logger.exception("Fault tree function execution failed")
-                yield {"type": "error", "message": "故障树生成失败"}
+                logger.exception("LLM stream failed during fault tree request")
+                async_done.wait()
+                yield {"type": "error", "message": "LLM service error"}
                 return
+
+            # 等待故障树后台线程完成（最多 120 秒），并在结尾推送结果
+            async_done.wait(timeout=120)
+            if fault_tree_container[0] is not None:
+                fault_tree_id = fault_tree_container[0].id
+                yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
+            else:
+                logger.warning("Async fault tree generation produced no result for: %s", question)
+
         else:
-            # 普通对话：流式调用 LLM
-            full_answer = ""
+            # 普通对话：直接流式调用 LLM（无 tool calling）
             try:
                 for token in self._llm.stream_chat(messages):
                     full_answer += token
@@ -204,24 +216,19 @@ class ChatUseCase:
             prompt=user_content,
             answer=full_answer,
             sources=sources,
+            fault_tree_id=fault_tree_id,
         )
         self._conversation_repo.add_round(conversation.id, chat_round)
         logger.info("Chat round saved for conversation: %s", conversation.id)
 
-        yield {
+        done_event = {
             "type": "done",
             "conversation_id": conversation.id,
             "answer": full_answer,
         }
+        if fault_tree_id:
+            done_event["fault_tree_id"] = fault_tree_id
 
-    @staticmethod
-    def _build_tree_summary(fault_tree, func_name: str) -> str:
-        """构建故障树操作的简要描述。"""
-        action = "生成" if func_name == "generate_fault_tree" else "更新"
-        event_nodes = [n for n in fault_tree.nodes if n.node_type.value == "event"]
-        gate_nodes = [n for n in fault_tree.nodes if n.node_type.value == "gate"]
-        return (
-            f"已{action}故障树「{fault_tree.name}」，"
-            f"包含 {len(event_nodes)} 个事件节点和 {len(gate_nodes)} 个逻辑门节点，"
-            f"共 {len(fault_tree.edges)} 条连接边。"
-        )
+        yield done_event
+
+

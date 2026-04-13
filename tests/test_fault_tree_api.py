@@ -45,6 +45,7 @@ def test_generate_fault_tree_via_chat():
     conversation_id = None
     fault_tree_data = None
     full_answer = ""
+    done_fault_tree_id = None
 
     response = requests.post(
         f"{BASE_URL}/api/chat",
@@ -77,6 +78,7 @@ def test_generate_fault_tree_via_chat():
             full_answer += data.get("content", "")
             print(data.get("content", ""), end="", flush=True)
         elif event_type == "done":
+            done_fault_tree_id = data.get("fault_tree_id")
             print(f"\n\n[✓ done] 完成! 回答共 {len(full_answer)} 字符")
         elif event_type == "error":
             print(f"\n[✗ error] {data.get('message')}")
@@ -85,6 +87,7 @@ def test_generate_fault_tree_via_chat():
     assert fault_tree_data, "应该生成了故障树"
     assert len(fault_tree_data.get("nodes", [])) > 0, "故障树应有节点"
     assert len(fault_tree_data.get("edges", [])) > 0, "故障树应有边"
+    assert done_fault_tree_id == fault_tree_data.get("id"), "done 事件应携带当前轮的 fault_tree_id"
 
     return conversation_id, fault_tree_data
 
@@ -130,6 +133,26 @@ def test_get_fault_tree_by_id(tree_id):
     print(f"[✓] 名称: {tree['name']}")
 
     assert tree["id"] == tree_id
+
+
+def test_conversation_round_links_fault_tree(conversation_id, tree_id):
+    """验证会话详情中的最后一轮带有 fault_tree_id"""
+    print("\n" + "=" * 60)
+    print("FT TEST 3.5: GET /api/conversations/<id> 轮次关联故障树")
+    print("=" * 60)
+
+    response = requests.get(f"{BASE_URL}/api/conversations/{conversation_id}", timeout=10)
+    response.raise_for_status()
+    conversation = response.json()
+    rounds = conversation.get("rounds", [])
+
+    assert rounds, "会话至少应包含一轮对话"
+
+    last_round = rounds[-1]
+    print(f"[✓] 会话轮次数: {len(rounds)}")
+    print(f"[✓] 最后一轮 fault_tree_id: {last_round.get('fault_tree_id')}")
+
+    assert last_round.get("fault_tree_id") == tree_id
 
 
 def test_list_fault_trees(tree_id):
@@ -411,6 +434,7 @@ def main():
 
     tests = [
         ("通过对话生成故障树", lambda: test_generate_fault_tree_via_chat()),
+        ("会话轮次关联树ID", lambda: test_conversation_round_links_fault_tree(conversation_id, tree_id)),
         ("按对话ID查故障树", lambda: test_get_fault_tree_by_conversation(conversation_id)),
         ("按树ID查故障树", lambda: test_get_fault_tree_by_id(tree_id)),
         ("故障树列表", lambda: test_list_fault_trees(tree_id)),
@@ -431,6 +455,7 @@ def main():
             result = test_fn()
             if name == "通过对话生成故障树" and result:
                 conversation_id, ft_data = result
+                tree_id = ft_data["id"]
             elif name == "按对话ID查故障树" and result:
                 tree_id = result
             passed += 1
