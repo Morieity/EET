@@ -12,12 +12,14 @@ class File:
         file_id: str | None = None,
         created_at: datetime | None = None,
         status: FileStatus = FileStatus.PENDING,
+        folder_id: str | None = None,
     ):
         self.id = file_id or str(uuid.uuid4())
         self.file_name = file_name
         self.file_type = file_type
         self.created_at = created_at or datetime.now()
         self.status = status
+        self.folder_id = folder_id
 
     def mark_embedded(self):
         self.status = FileStatus.EMBEDDED
@@ -32,4 +34,5 @@ class File:
             "file_type": self.file_type.value,
             "created_at": self.created_at.isoformat(),
             "status": self.status.value,
+            "folder_id": self.folder_id,
         }

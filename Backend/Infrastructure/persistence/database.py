@@ -10,7 +10,17 @@ CREATE TABLE IF NOT EXISTS files (
     file_name TEXT NOT NULL,
     file_type TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    folder_id TEXT,
+    FOREIGN KEY (folder_id) REFERENCES folders(id)
+);
+"""
+
+_CREATE_FOLDERS_SQL = """
+CREATE TABLE IF NOT EXISTS folders (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 """
 
@@ -95,6 +105,7 @@ def init_db() -> None:
     conn = get_connection()
     try:
         with _lock:
+            conn.execute(_CREATE_FOLDERS_SQL)
             conn.execute(_CREATE_TABLE_SQL)
             conn.execute(_CREATE_CONVERSATIONS_SQL)
             conn.execute(_CREATE_CHAT_ROUNDS_SQL)

@@ -46,7 +46,7 @@ FAULT_TREE_TOOLS = [
                                 },
                                 "gate_type": {
                                     "type": "string",
-                                    "enum": ["AND", "OR"],
+                                    "enum": ["AND", "OR", "XOR", "INHIBIT", "PRIORITY_AND"],
                                     "description": "逻辑门类型，仅当 node_type 为 gate 时需要",
                                 },
                                 "remark": {
@@ -114,7 +114,7 @@ FAULT_TREE_TOOLS = [
                                 },
                                 "gate_type": {
                                     "type": "string",
-                                    "enum": ["AND", "OR"],
+                                    "enum": ["AND", "OR", "XOR", "INHIBIT", "PRIORITY_AND"],
                                     "description": "逻辑门类型，仅 gate 节点需要",
                                 },
                                 "remark": {"type": "string", "description": "备注信息"},

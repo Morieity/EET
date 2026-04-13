@@ -23,3 +23,11 @@ class IFileRepository(ABC):
     @abstractmethod
     def update_status(self, file_id: str, status: FileStatus) -> None:
         pass
+
+    @abstractmethod
+    def update_folder(self, file_id: str, folder_id: str | None) -> None:
+        pass
+
+    @abstractmethod
+    def get_by_folder_id(self, folder_id: str) -> list[File]:
+        pass
