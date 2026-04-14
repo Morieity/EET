@@ -1,6 +1,10 @@
+import hashlib
+import logging
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from Backend.Application.Interfaces.IVectorStoreRepository import IVectorStoreRepository
+
+logger = logging.getLogger(__name__)
 
 
 class ChromaVectorStoreRepository(IVectorStoreRepository):
@@ -15,6 +19,22 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
             embedding_function=self._embedding,
             collection_name=self._collection_name,
         )
+
+    def _get_entity_store(self) -> Chroma:
+        return Chroma(
+            persist_directory=self._persist_directory,
+            embedding_function=self._embedding,
+            collection_name="graph_entities",
+        )
+
+    def _get_relation_store(self) -> Chroma:
+        return Chroma(
+            persist_directory=self._persist_directory,
+            embedding_function=self._embedding,
+            collection_name="graph_relations",
+        )
+
+    # ── 原有 rag_docs 方法 ──────────────────────────
 
     def add_documents(self, file_name: str, documents: list) -> None:
         for doc in documents:
@@ -41,3 +61,98 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
             for doc, score in results
             if score >= score_threshold
         ]
+
+    # ── graph_entities 方法 ─────────────────────────
+
+    def add_entity(self, name: str, entity_type: str, source_file: str = "") -> None:
+        store = self._get_entity_store()
+        entity_id = self._entity_id(name)
+        collection = store._collection
+        existing = collection.get(ids=[entity_id])
+        if existing["ids"]:
+            # upsert: 更新元数据
+            collection.update(
+                ids=[entity_id],
+                documents=[name],
+                metadatas=[{"name": name, "type": entity_type, "source_file": source_file}],
+            )
+        else:
+            collection.add(
+                ids=[entity_id],
+                documents=[name],
+                metadatas=[{"name": name, "type": entity_type, "source_file": source_file}],
+            )
+
+    def search_entities(self, query: str, top_k: int = 5) -> list[dict]:
+        store = self._get_entity_store()
+        try:
+            results = store._collection.query(query_texts=[query], n_results=top_k)
+        except Exception:
+            logger.debug("Entity search failed, collection may be empty")
+            return []
+        if not results["metadatas"] or not results["metadatas"][0]:
+            return []
+        return results["metadatas"][0]
+
+    def delete_entities_by_file(self, file_name: str) -> None:
+        store = self._get_entity_store()
+        collection = store._collection
+        try:
+            results = collection.get(where={"source_file": file_name})
+        except Exception:
+            return
+        if results["ids"]:
+            collection.delete(ids=results["ids"])
+
+    # ── graph_relations 方法 ────────────────────────
+
+    def add_relation(self, head: str, relation: str, tail: str, source_file: str = "") -> None:
+        store = self._get_relation_store()
+        rel_id = self._relation_id(head, relation, tail)
+        text = f"{head} {relation} {tail}"
+        collection = store._collection
+        existing = collection.get(ids=[rel_id])
+        if existing["ids"]:
+            collection.update(
+                ids=[rel_id],
+                documents=[text],
+                metadatas=[{"head": head, "relation": relation, "tail": tail, "source_file": source_file}],
+            )
+        else:
+            collection.add(
+                ids=[rel_id],
+                documents=[text],
+                metadatas=[{"head": head, "relation": relation, "tail": tail, "source_file": source_file}],
+            )
+
+    def search_relations(self, query: str, top_k: int = 5) -> list[dict]:
+        store = self._get_relation_store()
+        try:
+            results = store._collection.query(query_texts=[query], n_results=top_k)
+        except Exception:
+            logger.debug("Relation search failed, collection may be empty")
+            return []
+        if not results["metadatas"] or not results["metadatas"][0]:
+            return []
+        return results["metadatas"][0]
+
+    def delete_relations_by_file(self, file_name: str) -> None:
+        store = self._get_relation_store()
+        collection = store._collection
+        try:
+            results = collection.get(where={"source_file": file_name})
+        except Exception:
+            return
+        if results["ids"]:
+            collection.delete(ids=results["ids"])
+
+    # ── 工具方法 ────────────────────────────────────
+
+    @staticmethod
+    def _entity_id(name: str) -> str:
+        return "ent_" + hashlib.md5(name.encode()).hexdigest()[:12]
+
+    @staticmethod
+    def _relation_id(head: str, relation: str, tail: str) -> str:
+        key = f"{head}|{relation}|{tail}"
+        return "rel_" + hashlib.md5(key.encode()).hexdigest()[:12]

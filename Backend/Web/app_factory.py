@@ -7,6 +7,8 @@ from Backend.Infrastructure.persistence.FaultTreeRepository import SQLiteFaultTr
 from Backend.Infrastructure.document.DocumentProcessorPro import DocumentProcessorPro
 from Backend.Infrastructure.vectorstore.ChromaVectorStoreRepository import ChromaVectorStoreRepository
 from Backend.Infrastructure.llm.LLMService import LLMService
+from Backend.Infrastructure.llm.TripleExtractor import TripleExtractor
+from Backend.Infrastructure.graphstore.NetworkXGraphRepository import NetworkXGraphRepository
 from Backend.Application.UseCases.ImportFileUseCase import ImportFileUseCase
 from Backend.Application.UseCases.DeleteFileUseCase import DeleteFileUseCase
 from Backend.Application.UseCases.ChatUseCase import ChatUseCase
@@ -33,6 +35,10 @@ def create_app() -> Flask:
     fault_tree_repository = SQLiteFaultTreeRepository()
     llm_service = LLMService()
 
+    # GraphRAG 组件
+    graph_repository = NetworkXGraphRepository(graph_path="db/knowledge_graph.json")
+    triple_extractor = TripleExtractor(llm_service=llm_service)
+
     # Skills 组装
     fault_tree_skill = FaultTreeSkill(fault_tree_repository=fault_tree_repository)
 
@@ -42,17 +48,21 @@ def create_app() -> Flask:
         document_processor=document_processor,
         vector_store_repository=vector_store_repository,
         file_storage=file_storage,
+        triple_extractor=triple_extractor,
+        graph_repository=graph_repository,
     )
     delete_use_case = DeleteFileUseCase(
         file_repository=file_repository,
         vector_store_repository=vector_store_repository,
         file_storage=file_storage,
+        graph_repository=graph_repository,
     )
     chat_use_case = ChatUseCase(
         conversation_repository=conversation_repository,
         vector_store_repository=vector_store_repository,
         llm_service=llm_service,
         fault_tree_skill=fault_tree_skill,
+        graph_repository=graph_repository,
     )
     delete_conversation_use_case = DeleteConversationUseCase(
         conversation_repository=conversation_repository,
