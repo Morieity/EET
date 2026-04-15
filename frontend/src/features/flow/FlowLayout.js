@@ -139,7 +139,7 @@ export default function Flow() {
       {/* ========== 右侧主区域 ========== */}
       <div className="fc-main">
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <Outlet />
+          <Outlet context={{ collapseSidebar: () => setSidebarCollapsed(true) }} />
         </div>
       </div>
     </div>
