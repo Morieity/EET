@@ -92,6 +92,27 @@ class SQLiteConversationRepository(IConversationRepository):
         finally:
             conn.close()
 
+    def link_latest_round_fault_tree(self, conversation_id: str, fault_tree_id: str) -> bool:
+        """将故障树回填到最近一轮未绑定 fault_tree_id 的记录。"""
+        conn = get_connection()
+        try:
+            result = conn.execute(
+                "UPDATE chat_rounds "
+                "SET fault_tree_id = ? "
+                "WHERE id = ("
+                "  SELECT id FROM chat_rounds "
+                "  WHERE conversation_id = ? AND (fault_tree_id IS NULL OR fault_tree_id = '') "
+                "  ORDER BY created_at DESC "
+                "  LIMIT 1"
+                ") "
+                "AND (fault_tree_id IS NULL OR fault_tree_id = '')",
+                (fault_tree_id, conversation_id),
+            )
+            conn.commit()
+            return result.rowcount > 0
+        finally:
+            conn.close()
+
     @staticmethod
     def _load_rounds(conn, conversation_id: str) -> list[ChatRound]:
         rows = conn.execute(

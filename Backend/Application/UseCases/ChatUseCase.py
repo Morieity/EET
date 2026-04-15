@@ -60,6 +60,7 @@ class ChatUseCase:
         graph_repository: IGraphRepository | None = None,
         context_manager: IContextManager | None = None,
         context_config: ContextManagerConfig | None = None,
+        fault_tree_wait_timeout_seconds: float = 120,
     ):
         self._conversation_repo = conversation_repository
         self._vector_store = vector_store_repository
@@ -68,6 +69,7 @@ class ChatUseCase:
         self._graph_repo = graph_repository
         self._context_manager = context_manager
         self._context_config = context_config or DEFAULT_CONTEXT_CONFIG
+        self._fault_tree_wait_timeout_seconds = fault_tree_wait_timeout_seconds
 
     def execute(
         self, question: str, conversation_id: str | None = None
@@ -190,6 +192,17 @@ class ChatUseCase:
         full_answer = ""
         fault_tree_id: str | None = None
 
+        def _persist_round() -> None:
+            chat_round = ChatRound(
+                question=question,
+                prompt=user_content,
+                answer=full_answer,
+                sources=sources,
+                fault_tree_id=fault_tree_id,
+            )
+            self._conversation_repo.add_round(conversation.id, chat_round)
+            logger.info("Chat round saved for conversation: %s", conversation.id)
+
         if is_fault_tree_request:
             # 构建带工具指令的 messages，供后台 function calling 使用
             tool_instruction = (
@@ -263,12 +276,16 @@ class ChatUseCase:
                     yield {"type": "token", "content": token}
             except Exception:
                 logger.exception("LLM stream failed during fault tree request")
-                async_done.wait()
+                async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
+                if fault_tree_container[0] is not None:
+                    fault_tree_id = fault_tree_container[0].id
+                    yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
+                _persist_round()
                 yield {"type": "error", "message": "LLM service error"}
                 return
 
             # 等待故障树后台线程完成（最多 120 秒），并在结尾推送结果
-            async_done.wait(timeout=120)
+            async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
             if fault_tree_container[0] is not None:
                 fault_tree_id = fault_tree_container[0].id
                 yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
@@ -287,15 +304,7 @@ class ChatUseCase:
                 return
 
         # 5. 保存这一轮对话到数据库
-        chat_round = ChatRound(
-            question=question,
-            prompt=user_content,
-            answer=full_answer,
-            sources=sources,
-            fault_tree_id=fault_tree_id,
-        )
-        self._conversation_repo.add_round(conversation.id, chat_round)
-        logger.info("Chat round saved for conversation: %s", conversation.id)
+        _persist_round()
 
         done_event = {
             "type": "done",

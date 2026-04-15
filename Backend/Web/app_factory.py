@@ -51,7 +51,10 @@ def create_app() -> Flask:
     triple_extractor = TripleExtractor(llm_service=llm_service)
 
     # Skills 组装
-    fault_tree_skill = FaultTreeSkill(fault_tree_repository=fault_tree_repository)
+    fault_tree_skill = FaultTreeSkill(
+        fault_tree_repository=fault_tree_repository,
+        conversation_repository=conversation_repository,
+    )
 
     # 上下文模块日志开关由 DI 统一控制。
     context_log_enabled = _to_bool(os.getenv("CONTEXT_MODULE_LOG_ENABLED"), default=False)
