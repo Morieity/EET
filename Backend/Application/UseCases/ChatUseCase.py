@@ -7,6 +7,8 @@ from Backend.Application.Interfaces.IConversationRepository import IConversation
 from Backend.Application.Interfaces.IVectorStoreRepository import IVectorStoreRepository
 from Backend.Application.Interfaces.ILLMService import ILLMService
 from Backend.Application.Interfaces.IGraphRepository import IGraphRepository
+from Backend.Application.Interfaces.IContextManager import IContextManager
+from Backend.Application.ContextManagement.ContextManagerTypes import ContextManagerConfig
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 
 logger = logging.getLogger(__name__)
@@ -44,7 +46,8 @@ SYSTEM_PROMPT = (
     "然后在回复末尾提出针对性问题，引导用户补充关键信息（如具体故障现象、系统组成、运行环境等）。\n"
 )
 
-MAX_HISTORY_ROUNDS = 10
+MAX_HISTORY_ROUNDS = 20
+DEFAULT_CONTEXT_CONFIG = ContextManagerConfig(max_history_rounds=MAX_HISTORY_ROUNDS)
 
 
 class ChatUseCase:
@@ -55,12 +58,16 @@ class ChatUseCase:
         llm_service: ILLMService,
         fault_tree_skill: FaultTreeSkill,
         graph_repository: IGraphRepository | None = None,
+        context_manager: IContextManager | None = None,
+        context_config: ContextManagerConfig | None = None,
     ):
         self._conversation_repo = conversation_repository
         self._vector_store = vector_store_repository
         self._llm = llm_service
         self._fault_tree_skill = fault_tree_skill
         self._graph_repo = graph_repository
+        self._context_manager = context_manager
+        self._context_config = context_config or DEFAULT_CONTEXT_CONFIG
 
     def execute(
         self, question: str, conversation_id: str | None = None
@@ -117,10 +124,36 @@ class ChatUseCase:
             logger.exception("Vector store search failed")
             sources = []
 
-        yield {"type": "sources", "sources": sources}
+        context_result = None
+        if self._context_manager:
+            try:
+                context_result = self._context_manager.prepare_context(
+                    question=question,
+                    conversation_rounds=conversation.rounds,
+                    seed_names=seed_names,
+                    graph_paths=graph_paths,
+                    sources=sources,
+                    config=self._context_config,
+                )
+                seed_names = context_result.seed_names
+                graph_paths = context_result.graph_paths
+                sources = context_result.sources
+                context = context_result.context
+                logger.debug(
+                    "Context prepared: actions=%s, tokens=%s, sources=%d, paths=%d",
+                    ",".join(context_result.budget_actions) or "none",
+                    context_result.prompt_token_estimate,
+                    len(sources),
+                    len(graph_paths),
+                )
+            except Exception:
+                logger.exception("Context manager preparation failed, fallback to legacy flow")
 
-        # ④ 组合上下文：图谱路径 + 原文片段
-        context = self._build_enhanced_context(seed_names, graph_paths, sources)
+        if context_result is None:
+            # 回退：保留现有上下文组装逻辑
+            context = self._build_enhanced_context(seed_names, graph_paths, sources)
+
+        yield {"type": "sources", "sources": sources}
 
         # 注入已有故障树上下文（支持多轮修改同一棵树）
         existing_tree_context = self._fault_tree_skill.get_existing_tree_context(
@@ -131,17 +164,21 @@ class ChatUseCase:
 
         messages: list[dict] = [{"role": "system", "content": system_content}]
 
-        # 加入最近 N 轮历史对话
-        recent_rounds = conversation.rounds[-MAX_HISTORY_ROUNDS:]
-        for r in recent_rounds:
-            messages.append({"role": "user", "content": r.question})
-            messages.append({"role": "assistant", "content": r.answer})
-
-        # 当前问题拼接检索上下文
-        if context:
-            user_content = f"{question}\n\nContext:\n{context}"
+        if context_result is not None:
+            # 新流程：历史装配由 Context Manager 统一编排
+            messages.extend(context_result.history_messages)
+            user_content = context_result.user_content or question
         else:
-            user_content = question
+            # 回退：沿用现有最近 N 轮历史拼装
+            recent_rounds = conversation.rounds[-MAX_HISTORY_ROUNDS:]
+            for r in recent_rounds:
+                messages.append({"role": "user", "content": r.question})
+                messages.append({"role": "assistant", "content": r.answer})
+
+            if context:
+                user_content = f"{question}\n\nContext:\n{context}"
+            else:
+                user_content = question
 
         messages.append({"role": "user", "content": user_content})
 

@@ -1,3 +1,6 @@
+import logging
+import os
+
 from flask import Flask
 from Backend.Infrastructure.persistence.database import init_db
 from Backend.Infrastructure.persistence.FileRepository import SQLiteFileRepository
@@ -9,6 +12,8 @@ from Backend.Infrastructure.vectorstore.ChromaVectorStoreRepository import Chrom
 from Backend.Infrastructure.llm.LLMService import LLMService
 from Backend.Infrastructure.llm.TripleExtractor import TripleExtractor
 from Backend.Infrastructure.graphstore.NetworkXGraphRepository import NetworkXGraphRepository
+from Backend.Infrastructure.logging.ContextModuleLogger import NullLogger, PythonLoggerAdapter
+from Backend.Application.ContextManagement.ContextManager import DefaultContextManager
 from Backend.Application.UseCases.ImportFileUseCase import ImportFileUseCase
 from Backend.Application.UseCases.DeleteFileUseCase import DeleteFileUseCase
 from Backend.Application.UseCases.ChatUseCase import ChatUseCase
@@ -18,6 +23,12 @@ from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 from Backend.Web.Endpoints.FileEndpoint import create_file_blueprint
 from Backend.Web.Endpoints.ChatEndpoint import create_chat_blueprint
 from Backend.Web.Endpoints.FaultTreeEndpoint import create_fault_tree_blueprint
+
+
+def _to_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def create_app() -> Flask:
@@ -42,6 +53,15 @@ def create_app() -> Flask:
     # Skills 组装
     fault_tree_skill = FaultTreeSkill(fault_tree_repository=fault_tree_repository)
 
+    # 上下文模块日志开关由 DI 统一控制。
+    context_log_enabled = _to_bool(os.getenv("CONTEXT_MODULE_LOG_ENABLED"), default=False)
+    context_logger = (
+        PythonLoggerAdapter(logging.getLogger("Backend.ContextManagement"))
+        if context_log_enabled
+        else NullLogger()
+    )
+    context_manager = DefaultContextManager(context_logger=context_logger)
+
     # Use Cases 组装（依赖注入）
     import_use_case = ImportFileUseCase(
         file_repository=file_repository,
@@ -63,6 +83,7 @@ def create_app() -> Flask:
         llm_service=llm_service,
         fault_tree_skill=fault_tree_skill,
         graph_repository=graph_repository,
+        context_manager=context_manager,
     )
     delete_conversation_use_case = DeleteConversationUseCase(
         conversation_repository=conversation_repository,
