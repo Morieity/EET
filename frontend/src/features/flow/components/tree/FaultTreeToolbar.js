@@ -37,7 +37,7 @@ export default function FaultTreeToolbar({
             <Button size="small" icon={<ExportOutlined />} onClick={onDownloadJson}>导出</Button>
           </Tooltip>
           <Tooltip title="自动排版为树形结构">
-            <Button size="small" icon={<ApartmentOutlined />} onClick={() => onLayout('TB')}>排版</Button>
+            <Button size="small" icon={<ApartmentOutlined />} onClick={() => onLayout('LR')}>排版</Button>
           </Tooltip>
           <Tooltip title="添加事件节点">
             <Button size="small" icon={<PlusOutlined />} onClick={onAddNode}>添加节点</Button>

@@ -98,11 +98,11 @@ function GateNode({ data, isConnectable, selected }) {
   
   return (
     <div className={`gate-node ${selected ? 'selected' : ''}`} style={{ padding: '2px', borderRadius: '4px', border: selected ? '2px solid #222' : '1px solid transparent' }}>
-      <Handle type="target" position={Position.Top} isConnectable={isConnectable} style={{ background: '#555' }} />
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} style={{ background: '#555' }} />
       
       <IconComponent />
 
-      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Right} isConnectable={isConnectable} style={{ background: '#555' }} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ function FaultTreeWorkspaceInner({ tree, onBack }) {
   useEffect(() => {
     if (!tree) return;
     const { nodes: ftNodes, edges: ftEdges } = convertFaultTreeToFlow(tree);
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(ftNodes, ftEdges, 'TB');
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(ftNodes, ftEdges, 'LR');
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
     setFaultTreeId(tree.id || null);
