@@ -19,6 +19,7 @@ from Backend.Application.UseCases.DeleteFileUseCase import DeleteFileUseCase
 from Backend.Application.UseCases.ChatUseCase import ChatUseCase
 from Backend.Application.UseCases.DeleteConversationUseCase import DeleteConversationUseCase
 from Backend.Application.UseCases.FaultTreeUseCase import FaultTreeUseCase
+from Backend.Application.UseCases.ExpertLearningUseCase import ExpertLearningUseCase
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 from Backend.Web.Endpoints.FileEndpoint import create_file_blueprint
 from Backend.Web.Endpoints.ChatEndpoint import create_chat_blueprint
@@ -80,6 +81,14 @@ def create_app() -> Flask:
         file_storage=file_storage,
         graph_repository=graph_repository,
     )
+    expert_learning_use_case = ExpertLearningUseCase(
+        llm_service=llm_service,
+        vector_store_repository=vector_store_repository,
+        graph_repository=graph_repository,
+        triple_extractor=triple_extractor,
+        fault_tree_repository=fault_tree_repository,
+        conversation_repository=conversation_repository,
+    )
     chat_use_case = ChatUseCase(
         conversation_repository=conversation_repository,
         vector_store_repository=vector_store_repository,
@@ -87,6 +96,7 @@ def create_app() -> Flask:
         fault_tree_skill=fault_tree_skill,
         graph_repository=graph_repository,
         context_manager=context_manager,
+        expert_learning=expert_learning_use_case,
     )
     delete_conversation_use_case = DeleteConversationUseCase(
         conversation_repository=conversation_repository,
@@ -103,7 +113,10 @@ def create_app() -> Flask:
     chat_bp = create_chat_blueprint(chat_use_case, delete_conversation_use_case, conversation_repository)
     app.register_blueprint(chat_bp)
 
-    fault_tree_bp = create_fault_tree_blueprint(fault_tree_use_case)
+    fault_tree_bp = create_fault_tree_blueprint(
+        fault_tree_use_case,
+        expert_learning_use_case,
+    )
     app.register_blueprint(fault_tree_bp)
 
     return app

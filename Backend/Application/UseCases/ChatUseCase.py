@@ -2,6 +2,7 @@ import re
 import logging
 import threading
 from collections.abc import Generator
+from typing import TYPE_CHECKING
 from Backend.Domain.Entities.conversation import Conversation, ChatRound
 from Backend.Application.Interfaces.IConversationRepository import IConversationRepository
 from Backend.Application.Interfaces.IVectorStoreRepository import IVectorStoreRepository
@@ -10,6 +11,9 @@ from Backend.Application.Interfaces.IGraphRepository import IGraphRepository
 from Backend.Application.Interfaces.IContextManager import IContextManager
 from Backend.Application.ContextManagement.ContextManagerTypes import ContextManagerConfig
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
+
+if TYPE_CHECKING:
+    from Backend.Application.UseCases.ExpertLearningUseCase import ExpertLearningUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ class ChatUseCase:
         context_manager: IContextManager | None = None,
         context_config: ContextManagerConfig | None = None,
         fault_tree_wait_timeout_seconds: float = 120,
+        expert_learning: "ExpertLearningUseCase | None" = None,
     ):
         self._conversation_repo = conversation_repository
         self._vector_store = vector_store_repository
@@ -70,6 +75,7 @@ class ChatUseCase:
         self._context_manager = context_manager
         self._context_config = context_config or DEFAULT_CONTEXT_CONFIG
         self._fault_tree_wait_timeout_seconds = fault_tree_wait_timeout_seconds
+        self._expert_learning = expert_learning
 
     def execute(
         self, question: str, conversation_id: str | None = None
@@ -305,6 +311,13 @@ class ChatUseCase:
 
         # 5. 保存这一轮对话到数据库
         _persist_round()
+
+        if self._expert_learning:
+            self._expert_learning.index_conversation_round(
+                conversation_id=conversation.id,
+                question=question,
+                answer=full_answer,
+            )
 
         done_event = {
             "type": "done",
