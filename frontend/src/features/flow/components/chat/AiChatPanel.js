@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Input, Button, Tag, Collapse, Empty, Spin, message } from 'antd';
 import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
-import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined, LoadingOutlined, ApartmentOutlined } from '@ant-design/icons';
 import FaultTreeCard from '../tree/FaultTreeCard';
 import FaultTreeWorkspace from '../tree/FaultTreeWorkspace';
 import { extractFaultTreeFromText } from '../../utils/faultTreeParser';
@@ -115,6 +115,15 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
   const handleCloseTree = useCallback(() => {
     setActiveTree(null);
     setSplitRatio(33.333);
+  }, []);
+
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
+
+  const handleSendToChat = useCallback(async (text) => {
+    if (!text?.trim()) return;
+    setMessages((prev) => [...prev, { role: 'user', content: text.trim() }]);
+    await sendMessageRef.current(text.trim(), conversationIdRef.current);
   }, []);
 
   const handleSplitMouseDown = useCallback((e) => {
@@ -283,6 +292,17 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
                 </div>
               )}
               {/* 故障树卡片 */}
+              {!faultTree && msg.generatingTree && (
+                <div className="fc-fault-tree-card" style={{ marginTop: 8 }}>
+                  <div className="fc-fault-tree-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ApartmentOutlined style={{ color: '#8e44ad' }} />
+                      <LoadingOutlined style={{ color: '#8e44ad' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fc-text-muted)' }}>故障树加载中...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {faultTree && <FaultTreeCard tree={faultTree} onView={handleViewFaultTree} />}
             </div>
           </div>
@@ -332,7 +352,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       <>
         <div className="fc-chat-split-resize" onMouseDown={handleSplitMouseDown} />
         <div className="fc-chat-split-tree">
-          <FaultTreeWorkspace tree={activeTree} onBack={handleCloseTree} />
+          <FaultTreeWorkspace tree={activeTree} onBack={handleCloseTree} onSendToChat={handleSendToChat} />
         </div>
       </>
     )}

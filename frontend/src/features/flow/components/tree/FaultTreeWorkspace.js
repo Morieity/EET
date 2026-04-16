@@ -10,7 +10,7 @@ import FaultTreeToolbar from './FaultTreeToolbar';
 import NodeEditor from './NodeEditor';
 import '../../styles/tree.css';
 
-function FaultTreeWorkspaceInner({ tree, onBack }) {
+function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const [variant, setVariant] = useState('cross');
@@ -179,32 +179,22 @@ function FaultTreeWorkspaceInner({ tree, onBack }) {
   }, [selectedNode]);
 
   const onAddGate = useCallback((gateType) => {
-    const parentNode = nodes.find((n) => n.selected);
-    if (!parentNode) {
-      message.warning('请先选择一个节点，再添加逻辑门');
-      return;
-    }
-
     const newNodeId = getId();
+    const wrapperRect = flowWrapperRef.current?.getBoundingClientRect();
+    const position = screenToFlowPosition(
+      wrapperRect
+        ? { x: wrapperRect.left + wrapperRect.width / 2, y: wrapperRect.top + wrapperRect.height / 2 }
+        : { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+    );
     const newGateNode = {
       id: newNodeId,
-      position: {
-        x: parentNode.position.x,
-        y: parentNode.position.y + 150,
-      },
+      position,
       type: 'gate',
       data: { gateType },
     };
-    const newEdge = {
-      id: `${parentNode.id}-${newNodeId}`,
-      source: parentNode.id,
-      target: newNodeId,
-      type: 'smoothstep',
-    };
 
     setNodes((snapshot) => snapshot.concat(newGateNode));
-    setEdges((snapshot) => snapshot.concat(newEdge));
-  }, [nodes]);
+  }, [screenToFlowPosition]);
 
   return (
     <div className="fc-tree-workspace">
@@ -227,6 +217,7 @@ function FaultTreeWorkspaceInner({ tree, onBack }) {
         onLayout={onLayout}
         onAddNode={onAddNode}
         onSaveToServer={onSaveToServer}
+        onAiCheck={onSendToChat ? () => onSendToChat('帮我检查当前故障树逻辑') : undefined}
       />
 
       <div className="fc-tree-body">

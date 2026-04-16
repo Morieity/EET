@@ -3,15 +3,13 @@ import { Handle, Position } from '@xyflow/react';
 function AndGateIcon() {
   return (
     <svg width="28" height="36" viewBox="0 0 28 36" style={{ display: 'block' }}>
-      <g transform="translate(0, 36) rotate(-90)">
-        <path
-          d="M 4 2 L 18 2 A 12 12 0 0 1 18 26 L 4 26 Z"
-          fill="white"
-          stroke="#333"
-          strokeWidth="1.5"
-        />
-        <text x="12" y="18" transform="rotate(90, 12, 18)" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">&amp;</text>
-      </g>
+      <path
+        d="M 24 4 L 24 32 L 14 32 A 14 14 0 0 1 14 4 Z"
+        fill="white"
+        stroke="#333"
+        strokeWidth="1.5"
+      />
+      <text x="16" y="18" textAnchor="middle" dominantBaseline="middle" fontSize="10" fontWeight="bold" fill="#333">&amp;</text>
     </svg>
   );
 }
@@ -19,15 +17,13 @@ function AndGateIcon() {
 function OrGateIcon() {
   return (
     <svg width="28" height="36" viewBox="0 0 28 36" style={{ display: 'block' }}>
-      <g transform="translate(0, 36) rotate(-90)">
-        <path
-          d="M 4 2 Q 14 14 4 26 Q 18 26 32 14 Q 18 2 4 2 Z"
-          fill="white"
-          stroke="#333"
-          strokeWidth="1.5"
-        />
-        <text x="14" y="18" transform="rotate(90, 14, 18)" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">≥1</text>
-      </g>
+      <path
+        d="M 24 4 Q 14 18 24 32 Q 10 32 2 18 Q 10 4 24 4 Z"
+        fill="white"
+        stroke="#333"
+        strokeWidth="1.5"
+      />
+      <text x="16" y="18" textAnchor="middle" dominantBaseline="middle" fontSize="10" fontWeight="bold" fill="#333">≥1</text>
     </svg>
   );
 }
@@ -35,21 +31,19 @@ function OrGateIcon() {
 function XorGateIcon() {
   return (
     <svg width="28" height="36" viewBox="0 0 28 36" style={{ display: 'block' }}>
-      <g transform="translate(0, 36) rotate(-90)">
-        <path
-          d="M 4 2 Q 14 14 4 26 Q 18 26 32 14 Q 18 2 4 2 Z"
-          fill="white"
-          stroke="#333"
-          strokeWidth="1.5"
-        />
-        <path
-          d="M 1 2 Q 11 14 1 26"
-          fill="none"
-          stroke="#333"
-          strokeWidth="1.5"
-        />
-        <text x="14" y="18" transform="rotate(90, 14, 18)" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#333">=1</text>
-      </g>
+      <path
+        d="M 24 4 Q 14 18 24 32 Q 10 32 2 18 Q 10 4 24 4 Z"
+        fill="white"
+        stroke="#333"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M 27 4 Q 17 18 27 32"
+        fill="none"
+        stroke="#333"
+        strokeWidth="1.5"
+      />
+      <text x="16" y="18" textAnchor="middle" dominantBaseline="middle" fontSize="10" fontWeight="bold" fill="#333">=1</text>
     </svg>
   );
 }
@@ -72,15 +66,13 @@ function InhibitGateIcon() {
 function PriorityAndGateIcon() {
   return (
     <svg width="28" height="36" viewBox="0 0 28 36" style={{ display: 'block' }}>
-      <g transform="translate(0, 36) rotate(-90)">
-        <path
-          d="M 4 2 L 18 2 A 12 12 0 0 1 18 26 L 4 26 Z"
-          fill="white"
-          stroke="#333"
-          strokeWidth="1.5"
-        />
-        <text x="12" y="18" transform="rotate(90, 12, 18)" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#333">P&amp;</text>
-      </g>
+      <path
+        d="M 24 4 L 24 32 L 14 32 A 14 14 0 0 1 14 4 Z"
+        fill="white"
+        stroke="#333"
+        strokeWidth="1.5"
+      />
+      <text x="16" y="18" textAnchor="middle" dominantBaseline="middle" fontSize="8" fontWeight="bold" fill="#333">P&amp;</text>
     </svg>
   );
 }

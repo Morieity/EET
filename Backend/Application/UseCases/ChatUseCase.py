@@ -268,6 +268,7 @@ class ChatUseCase:
                 return
 
             # 等待故障树后台线程完成（最多 120 秒），并在结尾推送结果
+            yield {"type": "generating_tree"}
             async_done.wait(timeout=120)
             if fault_tree_container[0] is not None:
                 fault_tree_id = fault_tree_container[0].id
