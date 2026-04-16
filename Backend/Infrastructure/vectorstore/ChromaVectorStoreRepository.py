@@ -1,15 +1,19 @@
 import hashlib
 import logging
+from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from Backend.Application.Interfaces.IVectorStoreRepository import IVectorStoreRepository
 
 logger = logging.getLogger(__name__)
 
+# 项目根目录下的模型缓存路径
+_MODEL_CACHE_DIR = str(Path(__file__).resolve().parents[3] / "llm_model")
+
 
 class ChromaVectorStoreRepository(IVectorStoreRepository):
     def __init__(self, persist_directory: str = "db", collection_name: str = "rag_docs"):
-        self._embedding = FastEmbedEmbeddings()
+        self._embedding = FastEmbedEmbeddings(cache_dir=_MODEL_CACHE_DIR)
         self._persist_directory = persist_directory
         self._collection_name = collection_name
 

@@ -21,6 +21,9 @@ frontend/node_modules/
 # 忽略上传的 PDF 文件
 pdf/
 
+# 忽略下载的嵌入模型
+llm_model/
+
 # 忽略 Python 字节码
 *.pyc
 *.pyo
