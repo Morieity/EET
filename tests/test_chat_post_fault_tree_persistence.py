@@ -97,7 +97,7 @@ class _NoopVectorStore(IVectorStoreRepository):
         return []
 
     # ChatUseCase 内部会调用该方法；接口当前未声明，但实现类实际具备。
-    def search_entities(self, query: str, top_k: int = 5) -> list[dict]:
+    def search_entities(self, query: str, top_k: int = 20, score_threshold: float = 0.85) -> list[dict]:
         return []
 
 

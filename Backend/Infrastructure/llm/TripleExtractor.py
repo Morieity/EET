@@ -9,11 +9,11 @@ from Backend.Application.Interfaces.ILLMService import ILLMService
 logger = logging.getLogger(__name__)
 
 CHUNK_GROUP_SIZE = 2
-ASYNC_TRIPLE_EXTRACT_MAX_WORKERS = 50
+ASYNC_TRIPLE_EXTRACT_MAX_WORKERS = 30
 
 
 class TripleExtractor(ITripleExtractor):
-    def __init__(self, llm_service: ILLMService, request_interval: float = 0.1):
+    def __init__(self, llm_service: ILLMService, request_interval: float = 1.0):
         self._skill = GraphExtractionSkill(llm_service)
         self._request_interval = request_interval
 

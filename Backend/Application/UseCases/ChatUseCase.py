@@ -113,7 +113,7 @@ class ChatUseCase:
         graph_paths: list[dict] = []
         seed_names: list[str] = []
         try:
-            entity_results = self._vector_store.search_entities(query=question, top_k=5)
+            entity_results = self._vector_store.search_entities(query=question)
             seed_names = [m.get("name", "") for m in entity_results if m.get("name")]
         except Exception:
             logger.debug("Entity search skipped or failed")

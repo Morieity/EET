@@ -83,16 +83,26 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
                 metadatas=[{"name": name, "type": entity_type, "source_file": source_file}],
             )
 
-    def search_entities(self, query: str, top_k: int = 5) -> list[dict]:
+    def search_entities(
+        self, query: str, top_k: int = 20, score_threshold: float = 0.85
+    ) -> list[dict]:
         store = self._get_entity_store()
         try:
-            results = store._collection.query(query_texts=[query], n_results=top_k)
+            results = store._collection.query(
+                query_texts=[query], n_results=top_k, include=["metadatas", "distances"]
+            )
         except Exception:
             logger.debug("Entity search failed, collection may be empty")
             return []
         if not results["metadatas"] or not results["metadatas"][0]:
             return []
-        return results["metadatas"][0]
+        # Chroma 返回 L2 距离，转换为相关度分数: score = 1 / (1 + distance)
+        filtered: list[dict] = []
+        for meta, dist in zip(results["metadatas"][0], results["distances"][0]):
+            score = 1.0 / (1.0 + dist)
+            if score >= score_threshold:
+                filtered.append({**meta, "_score": round(score, 4)})
+        return filtered
 
     def delete_entities_by_file(self, file_name: str) -> None:
         store = self._get_entity_store()
@@ -125,16 +135,25 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
                 metadatas=[{"head": head, "relation": relation, "tail": tail, "source_file": source_file}],
             )
 
-    def search_relations(self, query: str, top_k: int = 5) -> list[dict]:
+    def search_relations(
+        self, query: str, top_k: int = 20, score_threshold: float = 0.5
+    ) -> list[dict]:
         store = self._get_relation_store()
         try:
-            results = store._collection.query(query_texts=[query], n_results=top_k)
+            results = store._collection.query(
+                query_texts=[query], n_results=top_k, include=["metadatas", "distances"]
+            )
         except Exception:
             logger.debug("Relation search failed, collection may be empty")
             return []
         if not results["metadatas"] or not results["metadatas"][0]:
             return []
-        return results["metadatas"][0]
+        filtered: list[dict] = []
+        for meta, dist in zip(results["metadatas"][0], results["distances"][0]):
+            score = 1.0 / (1.0 + dist)
+            if score >= score_threshold:
+                filtered.append({**meta, "_score": round(score, 4)})
+        return filtered
 
     def delete_relations_by_file(self, file_name: str) -> None:
         store = self._get_relation_store()
