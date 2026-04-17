@@ -76,6 +76,14 @@ export default function useChatStream({
                   return updated;
                 });
               });
+            } else if (eventType === 'generating_tree') {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = { ...updated[updated.length - 1] };
+                last.generatingTree = true;
+                updated[updated.length - 1] = last;
+                return updated;
+              });
             } else if (eventType === 'fault_tree') {
               const tree = payload.fault_tree;
               setMessages((prev) => {
