@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Input, Button, Tag, Collapse, Empty, Spin, message } from 'antd';
-import { useNavigate, useParams } from 'react-router-dom';
-import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
+import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined, LoadingOutlined, ApartmentOutlined } from '@ant-design/icons';
 import FaultTreeCard from '../tree/FaultTreeCard';
+import FaultTreeWorkspace from '../tree/FaultTreeWorkspace';
 import { extractFaultTreeFromText } from '../../utils/faultTreeParser';
+import { getFaultTree } from '../../services/faultTreeApi';
 import { INTENT_CONFIG, DEFAULT_WELCOME_MESSAGE, PERSISTED_TREE_ID_PATTERN, createAssistantMessage } from '../../utils/constants';
 import useChatStream from '../../hooks/useChatStream';
 import useConversationLoader from '../../hooks/useConversationLoader';
@@ -15,10 +17,14 @@ const { TextArea } = Input;
 export default function AiChatPanel({ initialConversationId, injectedTree, onInjected, onConversationCreated, onViewFaultTree }) {
   const navigate = useNavigate();
   const { conversationId: routeConversationId } = useParams();
+  const { collapseSidebar } = useOutletContext() || {};
   const [messages, setMessages] = useState(createAssistantMessage(DEFAULT_WELCOME_MESSAGE));
   const [inputText, setInputText] = useState('');
   const [conversationId, setConversationIdRaw] = useState(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [activeTree, setActiveTree] = useState(null);
+  const [splitRatio, setSplitRatio] = useState(33.333);
+  const splitDragging = useRef(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -85,15 +91,9 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
     return null;
   }, []);
 
-  const handleViewFaultTree = useCallback((tree) => {
+  const handleViewFaultTree = useCallback(async (tree) => {
     if (onViewFaultTree) {
       onViewFaultTree(tree);
-      return;
-    }
-
-    const activeConversationId = tree?.conversation_id || conversationIdRef.current;
-    if (!activeConversationId) {
-      message.warning('当前会话尚未建立，暂时无法跳转到故障树页面');
       return;
     }
 
@@ -103,8 +103,48 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       return;
     }
 
-    navigate(`/flow/${activeConversationId}/${persistedTreeId}`);
-  }, [navigate, onViewFaultTree, resolvePersistedTreeId]);
+    collapseSidebar?.();
+    try {
+      const loadedTree = await getFaultTree(persistedTreeId);
+      setActiveTree(loadedTree);
+    } catch (err) {
+      message.error('加载故障树失败: ' + err.message);
+    }
+  }, [onViewFaultTree, resolvePersistedTreeId, collapseSidebar]);
+
+  const handleCloseTree = useCallback(() => {
+    setActiveTree(null);
+    setSplitRatio(33.333);
+  }, []);
+
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
+
+  const handleSendToChat = useCallback(async (text) => {
+    if (!text?.trim()) return;
+    setMessages((prev) => [...prev, { role: 'user', content: text.trim() }]);
+    await sendMessageRef.current(text.trim(), conversationIdRef.current);
+  }, []);
+
+  const handleSplitMouseDown = useCallback((e) => {
+    e.preventDefault();
+    splitDragging.current = true;
+    const onMouseMove = (ev) => {
+      if (!splitDragging.current) return;
+      const container = ev.target.closest?.('.fc-chat-split-container') || document.querySelector('.fc-chat-split-container');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const ratio = ((ev.clientX - rect.left) / rect.width) * 100;
+      setSplitRatio(Math.min(70, Math.max(20, ratio)));
+    };
+    const onMouseUp = () => {
+      splitDragging.current = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -133,7 +173,8 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
   };
 
   return (
-    <div className="fc-chat-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: 1, minHeight: 0, background: 'var(--fc-main-bg)' }}>
+    <div className={`fc-chat-split-container ${activeTree ? 'fc-chat-split-container--split' : ''}`}>
+    <div className="fc-chat-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: activeTree ? `0 0 ${splitRatio}%` : 1, maxWidth: activeTree ? `${splitRatio}%` : undefined, minHeight: 0, background: 'var(--fc-main-bg)' }}>
       {/* 顶部标题栏 */}
       <div style={{
         padding: '12px 16px',
@@ -251,6 +292,17 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
                 </div>
               )}
               {/* 故障树卡片 */}
+              {!faultTree && msg.generatingTree && (
+                <div className="fc-fault-tree-card" style={{ marginTop: 8 }}>
+                  <div className="fc-fault-tree-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ApartmentOutlined style={{ color: '#8e44ad' }} />
+                      <LoadingOutlined style={{ color: '#8e44ad' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fc-text-muted)' }}>故障树加载中...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {faultTree && <FaultTreeCard tree={faultTree} onView={handleViewFaultTree} />}
             </div>
           </div>
@@ -295,6 +347,15 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
           </div>
         </div>
       </div>
+    </div>
+    {activeTree && (
+      <>
+        <div className="fc-chat-split-resize" onMouseDown={handleSplitMouseDown} />
+        <div className="fc-chat-split-tree">
+          <FaultTreeWorkspace tree={activeTree} onBack={handleCloseTree} onSendToChat={handleSendToChat} />
+        </div>
+      </>
+    )}
     </div>
   );
 }
