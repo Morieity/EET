@@ -8,9 +8,12 @@ from Backend.Application.Interfaces.ILLMService import ILLMService
 
 logger = logging.getLogger(__name__)
 
+CHUNK_GROUP_SIZE = 2
+ASYNC_TRIPLE_EXTRACT_MAX_WORKERS = 30
+
 
 class TripleExtractor(ITripleExtractor):
-    def __init__(self, llm_service: ILLMService, request_interval: float = 0.1):
+    def __init__(self, llm_service: ILLMService, request_interval: float = 1.0):
         self._skill = GraphExtractionSkill(llm_service)
         self._request_interval = request_interval
 
@@ -19,8 +22,8 @@ class TripleExtractor(ITripleExtractor):
     ) -> list[Triple]:
         return self._skill.extract(chunk_text, source_file, source_chunk_id)
 
-    def _merge_chunks(self, chunks: list[str], group_size: int = 4) -> list[tuple[str, list[int]]]:
-        """将相邻的 chunks 合并，每组 4 个。返回 (合并后文本, 原始索引列表)"""
+    def _merge_chunks(self, chunks: list[str], group_size: int = CHUNK_GROUP_SIZE) -> list[tuple[str, list[int]]]:
+        """将相邻的 chunks 合并，每组 2 个。返回 (合并后文本, 原始索引列表)"""
         merged = []
         for i in range(0, len(chunks), group_size):
             group = chunks[i:i+group_size]
@@ -33,13 +36,13 @@ class TripleExtractor(ITripleExtractor):
     def batch_extract(self, chunks: list[str], source_file: str = "") -> list[Triple]:
         """同步版本：合并 chunks + 异步并发提取"""
         # 合并相邻 chunks
-        merged_groups = self._merge_chunks(chunks, group_size=4)
+        merged_groups = self._merge_chunks(chunks, group_size=CHUNK_GROUP_SIZE)
         
         # 使用线程池并发调用 LLM
         all_triples: list[Triple] = []
         total = len(merged_groups)
         
-        with ThreadPoolExecutor(max_workers=9) as executor:
+        with ThreadPoolExecutor(max_workers=ASYNC_TRIPLE_EXTRACT_MAX_WORKERS) as executor:
             futures = []
             for merged_text, indices in merged_groups:
                 future = executor.submit(

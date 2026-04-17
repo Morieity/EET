@@ -22,3 +22,8 @@ class IConversationRepository(ABC):
     @abstractmethod
     def add_round(self, conversation_id: str, chat_round: ChatRound) -> None:
         pass
+
+    @abstractmethod
+    def link_latest_round_fault_tree(self, conversation_id: str, fault_tree_id: str) -> bool:
+        """回填故障树 ID 到最近一轮未绑定故障树的对话记录。"""
+        pass

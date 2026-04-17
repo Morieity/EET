@@ -38,6 +38,8 @@ class LLMService(ILLMService):
             base_url=base_url or os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
             temperature=temperature,
             streaming=True,
+            max_retries=3,
+            request_timeout=60,
         )
 
     def _to_lc_messages(self, messages: list[dict]):

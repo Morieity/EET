@@ -27,12 +27,16 @@ import json
 import logging
 from flask import Blueprint, request
 from Backend.Application.UseCases.FaultTreeUseCase import FaultTreeUseCase
+from Backend.Application.UseCases.ExpertLearningUseCase import ExpertLearningUseCase
 
 fault_tree_bp = Blueprint("fault_tree", __name__)
 logger = logging.getLogger(__name__)
 
 
-def create_fault_tree_blueprint(fault_tree_use_case: FaultTreeUseCase) -> Blueprint:
+def create_fault_tree_blueprint(
+    fault_tree_use_case: FaultTreeUseCase,
+    expert_learning_use_case: ExpertLearningUseCase | None = None,
+) -> Blueprint:
 
     @fault_tree_bp.route("/api/fault-trees", methods=["GET"])
     def list_fault_trees():
@@ -90,7 +94,15 @@ def create_fault_tree_blueprint(fault_tree_use_case: FaultTreeUseCase) -> Bluepr
         if not data.get("name") or not data.get("nodes") or not data.get("edges"):
             return {"error": "name, nodes, and edges are required"}, 400
         try:
+            before_tree = fault_tree_use_case.get_by_id(tree_id)
             tree = fault_tree_use_case.update(tree_id, data)
+            if expert_learning_use_case is not None:
+                expert_learning_use_case.learn_from_fault_tree_async(
+                    tree_id=tree_id,
+                    before_tree=before_tree.to_dict() if before_tree else None,
+                    after_tree=tree.to_dict(),
+                    update_payload=data,
+                )
             return tree.to_dict()
         except ValueError as e:
             return {"error": str(e)}, 404

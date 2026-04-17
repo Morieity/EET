@@ -5,8 +5,23 @@ from Backend.Application.UseCases.ChatUseCase import ChatUseCase
 from Backend.Application.UseCases.DeleteConversationUseCase import DeleteConversationUseCase
 from Backend.Application.Interfaces.IConversationRepository import IConversationRepository
 
-chat_bp = Blueprint("chat", __name__)
 logger = logging.getLogger(__name__)
+
+
+def _format_sse_event(event: dict) -> str:
+    """将 use case 事件编码成单条 SSE 消息。
+
+    前端当前按“单行 data + JSON.parse”解析，因此这里显式保证:
+    - 不修改输入事件对象（避免副作用）
+    - data 始终为单行 JSON
+    """
+    event_type = event.get("type")
+    if not event_type:
+        raise ValueError("SSE event missing 'type'")
+
+    payload = {k: v for k, v in event.items() if k != "type"}
+    data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return f"event: {event_type}\ndata: {data}\n\n"
 
 
 def create_chat_blueprint(
@@ -14,6 +29,7 @@ def create_chat_blueprint(
     delete_conversation_use_case: DeleteConversationUseCase,
     conversation_repository: IConversationRepository,
 ) -> Blueprint:
+    chat_bp = Blueprint("chat", __name__)
 
     @chat_bp.route("/api/chat", methods=["POST"])
     def chat():
@@ -50,8 +66,7 @@ def create_chat_blueprint(
         def event_stream():
             try:
                 for event in chat_use_case.execute(question, conversation_id):
-                    event_type = event.pop("type")
-                    yield f"event: {event_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    yield _format_sse_event(event)
             except Exception:
                 logger.exception("Unexpected error in SSE stream")
                 error_data = json.dumps({"message": "服务器内部错误"}, ensure_ascii=False)

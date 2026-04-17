@@ -3,6 +3,7 @@ import logging
 from Backend.Domain.Entities.fault_tree import FaultTree, FaultTreeNode, FaultTreeEdge
 from Backend.Domain.Common.Enums.FaultTreeEnums import NodeType, GateType
 from Backend.Application.Interfaces.IFaultTreeRepository import IFaultTreeRepository
+from Backend.Application.Interfaces.IConversationRepository import IConversationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +145,13 @@ FAULT_TREE_TOOLS = [
 
 
 class FaultTreeSkill:
-    def __init__(self, fault_tree_repository: IFaultTreeRepository):
+    def __init__(
+        self,
+        fault_tree_repository: IFaultTreeRepository,
+        conversation_repository: IConversationRepository | None = None,
+    ):
         self._repo = fault_tree_repository
+        self._conversation_repo = conversation_repository
 
     @property
     def tools(self) -> list[dict]:
@@ -201,6 +207,7 @@ class FaultTreeSkill:
             conversation_id=conversation_id,
         )
         self._repo.save(fault_tree)
+        self._link_latest_round_if_needed(fault_tree)
         logger.info("Fault tree generated: %s (id=%s)", name, fault_tree.id)
         return fault_tree
 
@@ -217,11 +224,37 @@ class FaultTreeSkill:
             existing.nodes = nodes
             existing.edges = edges
             self._repo.update(existing)
+            self._link_latest_round_if_needed(existing)
             logger.info("Fault tree updated: %s (id=%s)", name, existing.id)
             return existing
         else:
             # 没有已有树，创建新的
             return self._generate(arguments, conversation_id)
+
+    def _link_latest_round_if_needed(self, tree: FaultTree) -> None:
+        """兜底：故障树成功落库后，尝试回填到最近一轮未绑定故障树的对话记录。"""
+        if self._conversation_repo is None:
+            return
+        if not tree.conversation_id:
+            return
+
+        try:
+            linked = self._conversation_repo.link_latest_round_fault_tree(
+                tree.conversation_id,
+                tree.id,
+            )
+            if linked:
+                logger.info(
+                    "Fault tree linked to latest round: tree_id=%s, conversation_id=%s",
+                    tree.id,
+                    tree.conversation_id,
+                )
+        except Exception:
+            logger.exception(
+                "Failed to link fault tree to latest round: tree_id=%s, conversation_id=%s",
+                tree.id,
+                tree.conversation_id,
+            )
 
     def get_existing_tree_context(self, conversation_id: str | None) -> str:
         """获取当前对话中已有的故障树描述，用于注入到 LLM 上下文中。"""
