@@ -10,8 +10,8 @@ EXTRACT_SYSTEM = "你是一个工业故障知识图谱抽取助手，只返回 J
 EXTRACT_USER = """请从以下文本中，仅抽取符合 Schema 的三元组。
 
 Schema 约束（严格遵守，不得自行扩展类型）：
-- 实体类型：COMPONENT（组件）| SYMPTOM（故障现象）| ERROR_CODE（错误码）| SOLUTION（解决方案）
-- 关系类型：CAUSES（引发）| BELONGS_TO（属于）| RESOLVES（解决）| DIAGNOSES（排查）
+- 实体类型：COMPONENT（组件）| SYMPTOM（故障现象）| ERROR_CODE（错误码）| SOLUTION（解决方案）| DEVICE（设备）| FAULT_MODE（失效模式）| WORK_ORDER（工单）| CAUSE（根因）
+- 关系类型：CAUSES（引发）| BELONGS_TO（属于）| RESOLVES（解决）| DIAGNOSES（排查）| HAS_FAULT（设备存在故障）| ROOT_CAUSE_OF（根因对应故障）| TREATED_BY（故障由措施处理）| RECORDED_IN（记录于工单）
 
 输出格式（仅返回 JSON 数组，无任何额外文字）：
 [
@@ -25,8 +25,26 @@ Schema 约束（严格遵守，不得自行扩展类型）：
 """
 
 REQUIRED_FIELDS = ("head", "head_type", "relation", "tail", "tail_type")
-VALID_ENTITY_TYPES = {"COMPONENT", "SYMPTOM", "ERROR_CODE", "SOLUTION"}
-VALID_RELATION_TYPES = {"CAUSES", "BELONGS_TO", "RESOLVES", "DIAGNOSES"}
+VALID_ENTITY_TYPES = {
+    "COMPONENT",
+    "SYMPTOM",
+    "ERROR_CODE",
+    "SOLUTION",
+    "DEVICE",
+    "FAULT_MODE",
+    "WORK_ORDER",
+    "CAUSE",
+}
+VALID_RELATION_TYPES = {
+    "CAUSES",
+    "BELONGS_TO",
+    "RESOLVES",
+    "DIAGNOSES",
+    "HAS_FAULT",
+    "ROOT_CAUSE_OF",
+    "TREATED_BY",
+    "RECORDED_IN",
+}
 
 
 class GraphExtractionSkill:

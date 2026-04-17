@@ -7,7 +7,9 @@ from Backend.Infrastructure.persistence.FileRepository import SQLiteFileReposito
 from Backend.Infrastructure.persistence.LocalFileStorage import LocalFileStorage
 from Backend.Infrastructure.persistence.ConversationRepository import SQLiteConversationRepository
 from Backend.Infrastructure.persistence.FaultTreeRepository import SQLiteFaultTreeRepository
+from Backend.Infrastructure.persistence.WorkOrderRepository import SQLiteWorkOrderRepository
 from Backend.Infrastructure.document.DocumentProcessorPro import DocumentProcessorPro
+from Backend.Infrastructure.document.WorkOrderParser import WorkOrderParser
 from Backend.Infrastructure.vectorstore.ChromaVectorStoreRepository import ChromaVectorStoreRepository
 from Backend.Infrastructure.llm.LLMService import LLMService
 from Backend.Infrastructure.llm.TripleExtractor import TripleExtractor
@@ -20,10 +22,13 @@ from Backend.Application.UseCases.ChatUseCase import ChatUseCase
 from Backend.Application.UseCases.DeleteConversationUseCase import DeleteConversationUseCase
 from Backend.Application.UseCases.FaultTreeUseCase import FaultTreeUseCase
 from Backend.Application.UseCases.ExpertLearningUseCase import ExpertLearningUseCase
+from Backend.Application.UseCases.ImportWorkOrderUseCase import ImportWorkOrderUseCase
+from Backend.Application.UseCases.WorkOrderUseCase import WorkOrderUseCase
 from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 from Backend.Web.Endpoints.FileEndpoint import create_file_blueprint
 from Backend.Web.Endpoints.ChatEndpoint import create_chat_blueprint
 from Backend.Web.Endpoints.FaultTreeEndpoint import create_fault_tree_blueprint
+from Backend.Web.Endpoints.WorkOrderEndpoint import create_work_order_blueprint
 
 
 def _to_bool(value: str | None, default: bool = False) -> bool:
@@ -43,13 +48,21 @@ def create_app() -> Flask:
     file_storage = LocalFileStorage(upload_folder="uploads")
     document_processor = DocumentProcessorPro(chunk_size=1024, chunk_overlap=200)
     vector_store_repository = ChromaVectorStoreRepository(persist_directory="db")
+    # 工单使用独立 collection，避免与通用文档检索的 rag_docs 混用。
+    work_order_vector_store = ChromaVectorStoreRepository(
+        persist_directory="db",
+        collection_name="work_orders",
+    )
     conversation_repository = SQLiteConversationRepository()
     fault_tree_repository = SQLiteFaultTreeRepository()
+    work_order_repository = SQLiteWorkOrderRepository()
     llm_service = LLMService()
 
     # GraphRAG 组件
     graph_repository = NetworkXGraphRepository(graph_path="db/knowledge_graph.json")
     triple_extractor = TripleExtractor(llm_service=llm_service)
+    # 工单解析器负责 CSV/Excel/文本三类输入统一转实体。
+    work_order_parser = WorkOrderParser(llm_service=llm_service)
 
     # Skills 组装
     fault_tree_skill = FaultTreeSkill(
@@ -105,6 +118,19 @@ def create_app() -> Flask:
     fault_tree_use_case = FaultTreeUseCase(
         fault_tree_repository=fault_tree_repository,
     )
+    # 工单链路拆分为“导入处理”和“同步 CRUD”两个用例，职责更清晰。
+    import_work_order_use_case = ImportWorkOrderUseCase(
+        work_order_repository=work_order_repository,
+        parser=work_order_parser,
+        vector_store_repository=work_order_vector_store,
+        triple_extractor=triple_extractor,
+        graph_repository=graph_repository,
+    )
+    work_order_use_case = WorkOrderUseCase(
+        work_order_repository=work_order_repository,
+        vector_store_repository=work_order_vector_store,
+        graph_repository=graph_repository,
+    )
 
     # 注册 Blueprint
     file_bp = create_file_blueprint(import_use_case, delete_use_case, file_repository)
@@ -118,5 +144,12 @@ def create_app() -> Flask:
         expert_learning_use_case,
     )
     app.register_blueprint(fault_tree_bp)
+
+    work_order_bp = create_work_order_blueprint(
+        import_work_order_use_case,
+        work_order_use_case,
+    )
+    # 工单模块作为独立入口注册，不影响现有对话与文件能力。
+    app.register_blueprint(work_order_bp)
 
     return app

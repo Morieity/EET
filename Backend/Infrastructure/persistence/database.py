@@ -69,6 +69,50 @@ CREATE TABLE IF NOT EXISTS fault_tree_edges (
 );
 """
 
+# 工单主表：既保存结构化业务字段，也保存异步处理状态与错误信息。
+_CREATE_WORK_ORDERS_SQL = """
+CREATE TABLE IF NOT EXISTS work_orders (
+    id TEXT PRIMARY KEY,
+    order_no TEXT NOT NULL UNIQUE,
+    device_name TEXT NOT NULL,
+    device_code TEXT DEFAULT '',
+    fault_phenomenon TEXT DEFAULT '',
+    fault_cause TEXT DEFAULT '',
+    fault_category TEXT DEFAULT '',
+    severity TEXT DEFAULT '',
+    solution TEXT DEFAULT '',
+    occurrence_time TEXT,
+    resolution_time TEXT,
+    operator TEXT DEFAULT '',
+    status TEXT NOT NULL,
+    source_file TEXT DEFAULT '',
+    raw_text TEXT DEFAULT '',
+    processing_error TEXT DEFAULT '',
+    created_at TEXT NOT NULL
+);
+"""
+
+# 这些索引用于支持工单列表筛选与设备统计查询。
+_CREATE_WORK_ORDERS_DEVICE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_work_orders_device_name
+ON work_orders(device_name);
+"""
+
+_CREATE_WORK_ORDERS_CATEGORY_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_work_orders_fault_category
+ON work_orders(fault_category);
+"""
+
+_CREATE_WORK_ORDERS_STATUS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_work_orders_status
+ON work_orders(status);
+"""
+
+_CREATE_WORK_ORDERS_OCCURRENCE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_work_orders_occurrence_time
+ON work_orders(occurrence_time);
+"""
+
 _lock = threading.Lock()
 
 
@@ -92,6 +136,7 @@ def _ensure_column_exists(conn: sqlite3.Connection, table_name: str, column_name
 
 
 def init_db() -> None:
+    """初始化项目所需的 SQLite 表结构。"""
     conn = get_connection()
     try:
         with _lock:
@@ -101,7 +146,14 @@ def init_db() -> None:
             conn.execute(_CREATE_FAULT_TREES_SQL)
             conn.execute(_CREATE_FAULT_TREE_NODES_SQL)
             conn.execute(_CREATE_FAULT_TREE_EDGES_SQL)
+            # 阶段一新增的工单基础设施表与索引。
+            conn.execute(_CREATE_WORK_ORDERS_SQL)
+            conn.execute(_CREATE_WORK_ORDERS_DEVICE_INDEX_SQL)
+            conn.execute(_CREATE_WORK_ORDERS_CATEGORY_INDEX_SQL)
+            conn.execute(_CREATE_WORK_ORDERS_STATUS_INDEX_SQL)
+            conn.execute(_CREATE_WORK_ORDERS_OCCURRENCE_INDEX_SQL)
             _ensure_column_exists(conn, "chat_rounds", "fault_tree_id", "TEXT")
             conn.commit()
     finally:
         conn.close()
+
