@@ -153,6 +153,11 @@ def init_db() -> None:
             conn.execute(_CREATE_WORK_ORDERS_STATUS_INDEX_SQL)
             conn.execute(_CREATE_WORK_ORDERS_OCCURRENCE_INDEX_SQL)
             _ensure_column_exists(conn, "chat_rounds", "fault_tree_id", "TEXT")
+            # 工单驱动故障树：conversations 关联工单
+            _ensure_column_exists(conn, "conversations", "work_order_id", "TEXT")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_work_order_id ON conversations(work_order_id)")
+            # 工单驱动故障树：work_orders 关联最终故障树
+            _ensure_column_exists(conn, "work_orders", "fault_tree_id", "TEXT")
             conn.commit()
     finally:
         conn.close()

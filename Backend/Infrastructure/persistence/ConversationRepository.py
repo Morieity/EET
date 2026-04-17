@@ -14,8 +14,8 @@ class SQLiteConversationRepository(IConversationRepository):
         conn = get_connection()
         try:
             conn.execute(
-                "INSERT INTO conversations (id, name, created_at) VALUES (?, ?, ?)",
-                (conversation.id, conversation.name, conversation.created_at.isoformat()),
+                "INSERT INTO conversations (id, name, created_at, work_order_id) VALUES (?, ?, ?, ?)",
+                (conversation.id, conversation.name, conversation.created_at.isoformat(), conversation.work_order_id),
             )
             conn.commit()
         finally:
@@ -25,7 +25,7 @@ class SQLiteConversationRepository(IConversationRepository):
         conn = get_connection()
         try:
             row = conn.execute(
-                "SELECT id, name, created_at FROM conversations WHERE id = ?",
+                "SELECT id, name, created_at, work_order_id FROM conversations WHERE id = ?",
                 (conversation_id,),
             ).fetchone()
             if row is None:
@@ -37,6 +37,7 @@ class SQLiteConversationRepository(IConversationRepository):
                 name=row["name"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 rounds=rounds,
+                work_order_id=row["work_order_id"],
             )
         finally:
             conn.close()
@@ -45,7 +46,7 @@ class SQLiteConversationRepository(IConversationRepository):
         conn = get_connection()
         try:
             rows = conn.execute(
-                "SELECT c.id, c.name, c.created_at, "
+                "SELECT c.id, c.name, c.created_at, c.work_order_id, "
                 "(SELECT COUNT(*) FROM chat_rounds WHERE conversation_id = c.id) AS round_count "
                 "FROM conversations c ORDER BY c.created_at DESC"
             ).fetchall()
@@ -55,6 +56,7 @@ class SQLiteConversationRepository(IConversationRepository):
                     conversation_id=row["id"],
                     name=row["name"],
                     created_at=datetime.fromisoformat(row["created_at"]),
+                    work_order_id=row["work_order_id"],
                 )
                 conv.round_count = row["round_count"]
                 convs.append(conv)
@@ -89,6 +91,29 @@ class SQLiteConversationRepository(IConversationRepository):
                 ),
             )
             conn.commit()
+        finally:
+            conn.close()
+
+    def get_by_work_order_id(self, work_order_id: str) -> list[Conversation]:
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT c.id, c.name, c.created_at, c.work_order_id, "
+                "(SELECT COUNT(*) FROM chat_rounds WHERE conversation_id = c.id) AS round_count "
+                "FROM conversations c WHERE c.work_order_id = ? ORDER BY c.created_at DESC",
+                (work_order_id,),
+            ).fetchall()
+            convs = []
+            for row in rows:
+                conv = Conversation(
+                    conversation_id=row["id"],
+                    name=row["name"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    work_order_id=row["work_order_id"],
+                )
+                conv.round_count = row["round_count"]
+                convs.append(conv)
+            return convs
         finally:
             conn.close()
 

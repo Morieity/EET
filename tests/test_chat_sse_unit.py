@@ -10,7 +10,7 @@ class _StubChatUseCase:
     def __init__(self) -> None:
         self.events: list[dict] = []
 
-    def execute(self, question: str, conversation_id: str | None = None):
+    def execute(self, question: str, conversation_id: str | None = None, work_order_id: str | None = None):
         for event in self.events:
             yield event
 

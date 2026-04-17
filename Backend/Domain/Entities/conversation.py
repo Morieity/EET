@@ -40,12 +40,14 @@ class Conversation:
         conversation_id: str | None = None,
         created_at: datetime | None = None,
         rounds: list[ChatRound] | None = None,
+        work_order_id: str | None = None,
     ):
         self.id = conversation_id or str(uuid.uuid4())
         self.name = name
         self.created_at = created_at or datetime.now()
         self.rounds = rounds or []
         self.round_count = len(self.rounds)
+        self.work_order_id = work_order_id
 
     def add_round(self, chat_round: ChatRound) -> None:
         self.rounds.append(chat_round)
@@ -57,4 +59,5 @@ class Conversation:
             "created_at": self.created_at.isoformat(),
             "rounds": [r.to_dict() for r in self.rounds],
             "round_count": getattr(self, 'round_count', len(self.rounds)),
+            "work_order_id": self.work_order_id,
         }

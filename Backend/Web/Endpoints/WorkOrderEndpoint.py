@@ -1,7 +1,8 @@
+import json
 import logging
 import os
 
-from flask import Blueprint, request
+from flask import Blueprint, request, Response
 
 from Backend.Application.UseCases.ImportWorkOrderUseCase import ImportWorkOrderUseCase
 from Backend.Application.UseCases.WorkOrderUseCase import WorkOrderUseCase
@@ -31,6 +32,7 @@ def _error_status_code(error: ValueError) -> int:
 def create_work_order_blueprint(
     import_use_case: ImportWorkOrderUseCase,
     work_order_use_case: WorkOrderUseCase,
+    chat_use_case=None,
 ) -> Blueprint:
     """创建工单模块 Blueprint。"""
     work_order_bp = Blueprint("work_orders", __name__, url_prefix="/api/work-orders")
@@ -102,7 +104,15 @@ def create_work_order_blueprint(
                 fault_category=fault_category,
                 status=status,
             )
-            return [work_order.to_dict() for work_order in work_orders]
+            counts = work_order_use_case.get_aggregated_counts([wo.id for wo in work_orders])
+            result = []
+            for wo in work_orders:
+                d = wo.to_dict()
+                c = counts.get(wo.id, {})
+                d["conversation_count"] = c.get("conversation_count", 0)
+                d["fault_tree_count"] = c.get("fault_tree_count", 0)
+                result.append(d)
+            return result
         except ValueError as exc:
             return {"error": str(exc)}, 400
 
@@ -117,7 +127,11 @@ def create_work_order_blueprint(
         work_order = work_order_use_case.get_by_id(work_order_id)
         if work_order is None:
             return {"error": "Work order not found"}, 404
-        return work_order.to_dict()
+        d = work_order.to_dict()
+        convs = work_order_use_case.get_conversations(work_order_id)
+        d["conversation_count"] = len(convs)
+        d["fault_tree_count"] = len(work_order_use_case.get_fault_trees(work_order_id))
+        return d
 
     @work_order_bp.route("/<work_order_id>", methods=["PUT"])
     def update_work_order(work_order_id: str):
@@ -144,5 +158,100 @@ def create_work_order_blueprint(
         except Exception:
             logger.exception("Failed to delete work order: %s", work_order_id)
             return {"error": "Internal server error"}, 500
+
+    # ── T032: 工单关联对话列表 ──
+
+    @work_order_bp.route("/<work_order_id>/conversations", methods=["GET"])
+    def get_work_order_conversations(work_order_id: str):
+        wo = work_order_use_case.get_by_id(work_order_id)
+        if wo is None:
+            return {"error": "Work order not found"}, 404
+        convs = work_order_use_case.get_conversations(work_order_id)
+        return {
+            "work_order_id": work_order_id,
+            "conversations": [c.to_dict() for c in convs],
+        }
+
+    # ── T033: 工单关联故障树列表 ──
+
+    @work_order_bp.route("/<work_order_id>/fault-trees", methods=["GET"])
+    def get_work_order_fault_trees(work_order_id: str):
+        wo = work_order_use_case.get_by_id(work_order_id)
+        if wo is None:
+            return {"error": "Work order not found"}, 404
+        trees = work_order_use_case.get_fault_trees(work_order_id)
+        return {
+            "work_order_id": work_order_id,
+            "fault_trees": [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "conversation_id": t.conversation_id,
+                    "node_count": len(t.nodes),
+                    "created_at": t.created_at.isoformat(),
+                }
+                for t in trees
+            ],
+        }
+
+    # ── T034: 一键分析 ──
+
+    @work_order_bp.route("/<work_order_id>/analyze", methods=["POST"])
+    def analyze_work_order(work_order_id: str):
+        if chat_use_case is None:
+            return {"error": "Chat service not available"}, 503
+        wo = work_order_use_case.get_by_id(work_order_id)
+        if wo is None:
+            return {"error": "Work order not found"}, 404
+        data = request.get_json(silent=True) or {}
+        initial_prompt = (data.get("initial_prompt") or "").strip()
+        if not initial_prompt:
+            initial_prompt = (
+                f"基于工单 {wo.order_no} 的故障现象「{wo.fault_phenomenon}」，"
+                f"请分析可能的故障原因并构建故障树"
+            )
+
+        def _format_sse(event):
+            event_type = event.get("type", "")
+            payload = {k: v for k, v in event.items() if k != "type"}
+            d = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+            return f"event: {event_type}\ndata: {d}\n\n"
+
+        def event_stream():
+            try:
+                for event in chat_use_case.execute(initial_prompt, work_order_id=work_order_id):
+                    yield _format_sse(event)
+            except Exception:
+                logger.exception("SSE stream error during work order analysis")
+                err = json.dumps({"message": "服务器内部错误"}, ensure_ascii=False)
+                yield f"event: error\ndata: {err}\n\n"
+
+        return Response(
+            event_stream(),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    # ── T035: 工单故障树绑定/解绑 ──
+
+    @work_order_bp.route("/<work_order_id>/fault-tree", methods=["PUT"])
+    def link_fault_tree(work_order_id: str):
+        data = request.get_json(silent=True) or {}
+        fault_tree_id = (data.get("fault_tree_id") or "").strip()
+        if not fault_tree_id:
+            return {"error": "fault_tree_id is required"}, 400
+        try:
+            wo = work_order_use_case.link_fault_tree(work_order_id, fault_tree_id)
+            return {"id": wo.id, "fault_tree_id": wo.fault_tree_id, "message": "Fault tree linked successfully"}
+        except ValueError as exc:
+            return {"error": str(exc)}, _error_status_code(exc)
+
+    @work_order_bp.route("/<work_order_id>/fault-tree", methods=["DELETE"])
+    def unlink_fault_tree(work_order_id: str):
+        try:
+            wo = work_order_use_case.unlink_fault_tree(work_order_id)
+            return {"id": wo.id, "fault_tree_id": None, "message": "Fault tree unlinked successfully"}
+        except ValueError as exc:
+            return {"error": str(exc)}, _error_status_code(exc)
 
     return work_order_bp

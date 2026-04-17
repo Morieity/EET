@@ -52,6 +52,10 @@ class _InMemoryConversationRepo(IConversationRepository):
                     return True
             return False
 
+    def get_by_work_order_id(self, work_order_id: str) -> list:
+        with self._lock:
+            return [c for c in self._conversations.values() if getattr(c, 'work_order_id', None) == work_order_id]
+
 
 class _InMemoryFaultTreeRepo(IFaultTreeRepository):
     def __init__(self) -> None:

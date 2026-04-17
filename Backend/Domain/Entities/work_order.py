@@ -32,6 +32,7 @@ class WorkOrder:
         processing_error: str = "",
         work_order_id: str | None = None,
         created_at: datetime | None = None,
+        fault_tree_id: str | None = None,
     ):
         self.id = work_order_id or str(uuid.uuid4())
         self.order_no = order_no
@@ -49,7 +50,16 @@ class WorkOrder:
         self.source_file = source_file
         self.raw_text = raw_text
         self.processing_error = processing_error
+        self.fault_tree_id = fault_tree_id
         self.created_at = created_at or datetime.now()
+
+    def link_fault_tree(self, fault_tree_id: str) -> None:
+        """绑定最终故障树。"""
+        self.fault_tree_id = fault_tree_id
+
+    def unlink_fault_tree(self) -> None:
+        """解除故障树绑定。"""
+        self.fault_tree_id = None
 
     def mark_pending(self, processing_error: str = "") -> None:
         """将工单标记为待处理，并记录最近一次处理错误。"""
@@ -113,6 +123,7 @@ class WorkOrder:
             "source_file": self.source_file,
             "raw_text": self.raw_text,
             "processing_error": self.processing_error,
+            "fault_tree_id": self.fault_tree_id,
             "created_at": self.created_at.isoformat(),
         }
 
@@ -140,4 +151,5 @@ class WorkOrder:
             raw_text=(data.get("raw_text") or "").strip(),
             processing_error=(data.get("processing_error") or "").strip(),
             created_at=datetime.fromisoformat(created_at) if created_at else None,
+            fault_tree_id=data.get("fault_tree_id"),
         )

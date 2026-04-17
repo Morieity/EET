@@ -61,3 +61,18 @@ class IWorkOrderRepository(ABC):
     def get_device_stats(self, device_name: str) -> dict:
         """返回设备维度的工单聚合统计。"""
         pass
+
+    @abstractmethod
+    def get_by_device_name(self, device_name: str) -> list[WorkOrder]:
+        """按设备名检索历史工单。"""
+        pass
+
+    @abstractmethod
+    def link_fault_tree(self, work_order_id: str, fault_tree_id: str) -> bool:
+        """绑定工单的最终故障树。"""
+        pass
+
+    @abstractmethod
+    def unlink_fault_tree(self, work_order_id: str) -> bool:
+        """解除工单的故障树绑定。"""
+        pass

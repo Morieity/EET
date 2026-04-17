@@ -14,6 +14,7 @@ from Backend.Application.Skills.FaultTreeSkill import FaultTreeSkill
 
 if TYPE_CHECKING:
     from Backend.Application.UseCases.ExpertLearningUseCase import ExpertLearningUseCase
+    from Backend.Application.Interfaces.IWorkOrderRepository import IWorkOrderRepository
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,8 @@ class ChatUseCase:
         context_config: ContextManagerConfig | None = None,
         fault_tree_wait_timeout_seconds: float = 120,
         expert_learning: "ExpertLearningUseCase | None" = None,
+        work_order_repository: "IWorkOrderRepository | None" = None,
+        work_order_vector_store: IVectorStoreRepository | None = None,
     ):
         self._conversation_repo = conversation_repository
         self._vector_store = vector_store_repository
@@ -76,20 +79,31 @@ class ChatUseCase:
         self._context_config = context_config or DEFAULT_CONTEXT_CONFIG
         self._fault_tree_wait_timeout_seconds = fault_tree_wait_timeout_seconds
         self._expert_learning = expert_learning
+        self._work_order_repo = work_order_repository
+        self._work_order_vector_store = work_order_vector_store
 
     def execute(
-        self, question: str, conversation_id: str | None = None
+        self, question: str, conversation_id: str | None = None, work_order_id: str | None = None,
     ) -> Generator[dict, None, None]:
         """执行一轮对话，以 Generator 方式逐步 yield 事件给调用方。
 
         事件类型:
           - {"type": "conversation", "conversation_id": ..., "name": ...}
+          - {"type": "work_order_context", ...}
           - {"type": "sources", "sources": [...]}
           - {"type": "token", "content": ...}
           - {"type": "fault_tree", "fault_tree": {...}}
           - {"type": "done", "answer": ..., "conversation_id": ...}
           - {"type": "error", "message": ...}
         """
+        # 0. 工单模式：加载工单实体
+        work_order = None
+        if work_order_id and self._work_order_repo:
+            work_order = self._work_order_repo.get_by_id(work_order_id)
+            if work_order is None:
+                yield {"type": "error", "message": f"Work order not found: {work_order_id}"}
+                return
+
         # 1. 获取或创建对话
         if conversation_id:
             conversation = self._conversation_repo.get_by_id(conversation_id)
@@ -98,7 +112,7 @@ class ChatUseCase:
                 return
         else:
             name = question[:30] if len(question) > 30 else question
-            conversation = Conversation(name=name)
+            conversation = Conversation(name=name, work_order_id=work_order_id)
             self._conversation_repo.save(conversation)
             logger.info("New conversation created: %s", conversation.id)
 
@@ -107,6 +121,14 @@ class ChatUseCase:
             "conversation_id": conversation.id,
             "name": conversation.name,
         }
+
+        if work_order:
+            yield {
+                "type": "work_order_context",
+                "work_order_id": work_order.id,
+                "device_name": work_order.device_name,
+                "fault_phenomenon": work_order.fault_phenomenon,
+            }
 
         # 2. 四步 GraphRAG 检索
         # ① 向量寻点：从 entity collection 找种子实体
@@ -165,10 +187,16 @@ class ChatUseCase:
 
         # 注入已有故障树上下文（支持多轮修改同一棵树）
         existing_tree_context = self._fault_tree_skill.get_existing_tree_context(
-            conversation.id
+            conversation.id, work_order=work_order,
         )
 
-        system_content = SYSTEM_PROMPT + existing_tree_context
+        # 组装 system prompt：基础 + 工单上下文 + 故障树上下文 + 历史工单参考
+        system_content = SYSTEM_PROMPT
+        if work_order:
+            system_content += "\n\n" + self._build_work_order_context(work_order)
+        system_content += existing_tree_context
+        if work_order:
+            system_content += "\n\n" + self._retrieve_work_order_references(work_order)
 
         messages: list[dict] = [{"role": "system", "content": system_content}]
 
@@ -194,6 +222,11 @@ class ChatUseCase:
         generate_match = _FAULT_TREE_GENERATE_PATTERN.search(question)
         update_match = _FAULT_TREE_UPDATE_PATTERN.search(question)
         is_fault_tree_request = bool(generate_match or update_match)
+
+        # T021: 工单模式首轮自动触发故障树生成
+        if work_order and not conversation.rounds:
+            is_fault_tree_request = True
+            generate_match = generate_match or True  # 确保走 generate 分支
 
         full_answer = ""
         fault_tree_id: str | None = None
@@ -357,4 +390,42 @@ class ChatUseCase:
 
         return "\n\n".join(parts)
 
+    @staticmethod
+    def _build_work_order_context(work_order) -> str:
+        """将工单结构化信息拼接为 system prompt 片段。"""
+        lines = ["## 当前工单信息"]
+        lines.append(f"- 工单编号: {work_order.order_no}")
+        lines.append(f"- 设备名称: {work_order.device_name}")
+        if work_order.device_code:
+            lines.append(f"- 设备编码: {work_order.device_code}")
+        if work_order.fault_phenomenon:
+            lines.append(f"- 故障现象: {work_order.fault_phenomenon}")
+        if work_order.fault_cause:
+            lines.append(f"- 故障原因: {work_order.fault_cause}")
+        if work_order.fault_category:
+            lines.append(f"- 故障分类: {work_order.fault_category}")
+        if work_order.severity:
+            lines.append(f"- 严重等级: {work_order.severity}")
+        if work_order.solution:
+            lines.append(f"- 处置措施: {work_order.solution}")
+        lines.append("\n请围绕此工单描述的故障进行分析和故障树构建。")
+        return "\n".join(lines)
 
+    def _retrieve_work_order_references(self, work_order) -> str:
+        """从向量库检索同设备历史工单摘要作为参考上下文。"""
+        if not self._work_order_vector_store:
+            return ""
+        try:
+            results = self._work_order_vector_store.search(work_order.device_name, k=5)
+        except Exception:
+            logger.debug("Work order reference search failed")
+            return ""
+        if not results:
+            return ""
+        lines = ["## 相关历史工单"]
+        for item in results[:5]:
+            text = item.get("page_content", "")
+            if len(text) > 200:
+                text = text[:200] + "..."
+            lines.append(f"- {text}")
+        return "\n".join(lines)

@@ -20,8 +20,8 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
                     id, order_no, device_name, device_code, fault_phenomenon,
                     fault_cause, fault_category, severity, solution,
                     occurrence_time, resolution_time, operator, status,
-                    source_file, raw_text, processing_error, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source_file, raw_text, processing_error, created_at, fault_tree_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 self._entity_to_params(work_order),
             )
@@ -41,8 +41,8 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
                     id, order_no, device_name, device_code, fault_phenomenon,
                     fault_cause, fault_category, severity, solution,
                     occurrence_time, resolution_time, operator, status,
-                    source_file, raw_text, processing_error, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source_file, raw_text, processing_error, created_at, fault_tree_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [self._entity_to_params(work_order) for work_order in work_orders],
             )
@@ -111,7 +111,7 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
                 SET order_no = ?, device_name = ?, device_code = ?, fault_phenomenon = ?,
                     fault_cause = ?, fault_category = ?, severity = ?, solution = ?,
                     occurrence_time = ?, resolution_time = ?, operator = ?, status = ?,
-                    source_file = ?, raw_text = ?, processing_error = ?
+                    source_file = ?, raw_text = ?, processing_error = ?, fault_tree_id = ?
                 WHERE id = ?
                 """,
                 (
@@ -130,6 +130,7 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
                     work_order.source_file,
                     work_order.raw_text,
                     work_order.processing_error,
+                    work_order.fault_tree_id,
                     work_order.id,
                 ),
             )
@@ -206,6 +207,41 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
         finally:
             conn.close()
 
+    def get_by_device_name(self, device_name: str) -> list[WorkOrder]:
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM work_orders WHERE device_name = ? ORDER BY created_at DESC",
+                (device_name,),
+            ).fetchall()
+            return [self._row_to_entity(row) for row in rows]
+        finally:
+            conn.close()
+
+    def link_fault_tree(self, work_order_id: str, fault_tree_id: str) -> bool:
+        conn = get_connection()
+        try:
+            cursor = conn.execute(
+                "UPDATE work_orders SET fault_tree_id = ? WHERE id = ?",
+                (fault_tree_id, work_order_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def unlink_fault_tree(self, work_order_id: str) -> bool:
+        conn = get_connection()
+        try:
+            cursor = conn.execute(
+                "UPDATE work_orders SET fault_tree_id = NULL WHERE id = ?",
+                (work_order_id,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
     @staticmethod
     def _entity_to_params(work_order: WorkOrder) -> tuple:
         """把领域实体转换成 SQL 参数顺序。"""
@@ -227,6 +263,7 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
             work_order.raw_text,
             work_order.processing_error,
             work_order.created_at.isoformat(),
+            work_order.fault_tree_id,
         )
 
     @staticmethod
@@ -250,4 +287,5 @@ class SQLiteWorkOrderRepository(IWorkOrderRepository):
             raw_text=row["raw_text"] or "",
             processing_error=row["processing_error"] or "",
             created_at=datetime.fromisoformat(row["created_at"]),
+            fault_tree_id=row["fault_tree_id"] if "fault_tree_id" in row.keys() else None,
         )

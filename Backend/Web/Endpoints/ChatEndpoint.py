@@ -62,10 +62,11 @@ def create_chat_blueprint(
             return {"error": "question is required"}, 400
 
         conversation_id = data.get("conversation_id")
+        work_order_id = data.get("work_order_id")
 
         def event_stream():
             try:
-                for event in chat_use_case.execute(question, conversation_id):
+                for event in chat_use_case.execute(question, conversation_id, work_order_id=work_order_id):
                     yield _format_sse_event(event)
             except Exception:
                 logger.exception("Unexpected error in SSE stream")

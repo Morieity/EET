@@ -110,6 +110,8 @@ def create_app() -> Flask:
         graph_repository=graph_repository,
         context_manager=context_manager,
         expert_learning=expert_learning_use_case,
+        work_order_repository=work_order_repository,
+        work_order_vector_store=work_order_vector_store,
     )
     delete_conversation_use_case = DeleteConversationUseCase(
         conversation_repository=conversation_repository,
@@ -130,6 +132,8 @@ def create_app() -> Flask:
         work_order_repository=work_order_repository,
         vector_store_repository=work_order_vector_store,
         graph_repository=graph_repository,
+        conversation_repository=conversation_repository,
+        fault_tree_repository=fault_tree_repository,
     )
 
     # 注册 Blueprint
@@ -148,6 +152,7 @@ def create_app() -> Flask:
     work_order_bp = create_work_order_blueprint(
         import_work_order_use_case,
         work_order_use_case,
+        chat_use_case=chat_use_case,
     )
     # 工单模块作为独立入口注册，不影响现有对话与文件能力。
     app.register_blueprint(work_order_bp)

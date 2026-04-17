@@ -92,6 +92,15 @@ class _StubWorkOrderUseCase:
             raise ValueError(f"Work order not found: {work_order_id}")
         del self.items[work_order_id]
 
+    def get_conversations(self, work_order_id: str) -> list:
+        return []
+
+    def get_fault_trees(self, work_order_id: str) -> list:
+        return []
+
+    def get_aggregated_counts(self, work_order_ids: list) -> dict:
+        return {wid: {"conversation_count": 0, "fault_tree_count": 0} for wid in work_order_ids}
+
 
 @pytest.fixture()
 def _app_and_stubs():

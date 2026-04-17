@@ -1,11 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""并发对话测试 - 模拟多个终端同时进行对话"""
+"""并发对话测试 - 模拟多个终端同时进行对话（集成测试，需要后端服务运行）"""
 
 import json
 import time
 import threading
 import requests
+import pytest
+
+
+def _server_is_running():
+    try:
+        requests.get("http://127.0.0.1:8080/api/conversations", timeout=2)
+        return True
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _server_is_running(),
+    reason="集成测试需要后端服务运行在 127.0.0.1:8080",
+)
 
 BASE_URL = "http://127.0.0.1:8080"
 

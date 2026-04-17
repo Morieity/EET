@@ -27,3 +27,8 @@ class IConversationRepository(ABC):
     def link_latest_round_fault_tree(self, conversation_id: str, fault_tree_id: str) -> bool:
         """回填故障树 ID 到最近一轮未绑定故障树的对话记录。"""
         pass
+
+    @abstractmethod
+    def get_by_work_order_id(self, work_order_id: str) -> list[Conversation]:
+        """获取工单下所有对话（不加载轮次，仅含 round_count）。"""
+        pass

@@ -256,18 +256,26 @@ class FaultTreeSkill:
                 tree.conversation_id,
             )
 
-    def get_existing_tree_context(self, conversation_id: str | None) -> str:
+    def get_existing_tree_context(self, conversation_id: str | None, work_order=None) -> str:
         """获取当前对话中已有的故障树描述，用于注入到 LLM 上下文中。"""
         if not conversation_id:
             return ""
         tree = self._repo.get_by_conversation_id(conversation_id)
         if not tree:
             return ""
-        return (
-            f"\n\n[当前对话已有故障树]\n"
-            f"名称: {tree.name}\n"
-            f"节点: {json.dumps([n.to_dict() for n in tree.nodes], ensure_ascii=False)}\n"
-            f"边: {json.dumps([e.to_dict() for e in tree.edges], ensure_ascii=False)}\n"
-            f"如果用户要求修改此故障树，请使用 update_fault_tree 工具并提供修改后的完整结构。\n"
-            f"如果用户要求生成一棵新的故障树（与当前主题无关），请使用 generate_fault_tree 工具。\n"
-        )
+        parts = [
+            f"\n\n[当前对话已有故障树]\n",
+            f"名称: {tree.name}\n",
+            f"节点: {json.dumps([n.to_dict() for n in tree.nodes], ensure_ascii=False)}\n",
+            f"边: {json.dumps([e.to_dict() for e in tree.edges], ensure_ascii=False)}\n",
+            f"如果用户要求修改此故障树，请使用 update_fault_tree 工具并提供修改后的完整结构。\n",
+            f"如果用户要求生成一棵新的故障树（与当前主题无关），请使用 generate_fault_tree 工具。\n",
+        ]
+        if work_order:
+            parts.append(
+                f"\n当前工单信息: 设备={work_order.device_name}, "
+                f"故障现象={work_order.fault_phenomenon}, "
+                f"故障原因={work_order.fault_cause}, "
+                f"分类={work_order.fault_category}\n"
+            )
+        return "".join(parts)
