@@ -9,3 +9,6 @@ class NodeType(Enum):
 class GateType(Enum):
     AND = "AND"
     OR = "OR"
+    XOR = "XOR"
+    INHIBIT = "INHIBIT"
+    PRIORITY_AND = "PRIORITY_AND"
