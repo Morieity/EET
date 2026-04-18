@@ -292,6 +292,7 @@ class ChatUseCase:
 
             # 等待故障树后台线程完成（最多 120 秒），并在结尾推送结果
             async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
+            
             if fault_tree_container[0] is not None:
                 fault_tree_id = fault_tree_container[0].id
                 yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}

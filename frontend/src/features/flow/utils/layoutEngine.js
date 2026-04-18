@@ -16,6 +16,7 @@ export const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
   dagreGraph.setGraph({
     rankdir: direction,
+    align: 'UL',
     nodesep: 100,
     ranksep: 120,
     edgesep: 50,
@@ -33,6 +34,8 @@ export const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 
   dagre.layout(dagreGraph);
 
+  const isHorizontal = direction === 'LR' || direction === 'RL';
+
   const newNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     const newNode = { ...node };
@@ -45,8 +48,23 @@ export const getLayoutedElements = (nodes, edges, direction = 'TB') => {
       y: nodeWithPosition.y - height / 2,
     };
 
+    // 用 dagre 的 rank 方向坐标标识同一层
+    newNode._rankKey = Math.round(isHorizontal ? nodeWithPosition.x : nodeWithPosition.y);
+
     return newNode;
   });
+
+  // 同一层节点左对齐：统一左边缘 x 为该层最小值
+  const rankGroups = {};
+  newNodes.forEach((node) => {
+    if (!rankGroups[node._rankKey]) rankGroups[node._rankKey] = [];
+    rankGroups[node._rankKey].push(node);
+  });
+  Object.values(rankGroups).forEach((group) => {
+    const minX = Math.min(...group.map((n) => n.position.x));
+    group.forEach((node) => { node.position.x = minX; });
+  });
+  newNodes.forEach((node) => { delete node._rankKey; });
 
   return { nodes: newNodes, edges };
 };
