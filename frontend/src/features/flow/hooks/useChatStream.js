@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { flushSync } from 'react-dom';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendChatMessage } from '../services/chatApi';
 
 export default function useChatStream({
@@ -7,6 +6,43 @@ export default function useChatStream({
   onConversationCreated, routeConversationId, navigate,
 }) {
   const [isStreaming, setIsStreaming] = useState(false);
+  const tokenBufferRef = useRef('');
+  const tokenTimerRef = useRef(null);
+
+  const flushTokenBuffer = useCallback((immediate = false) => {
+    const bufferedToken = tokenBufferRef.current;
+    if (!bufferedToken) return;
+
+    tokenBufferRef.current = '';
+    setMessages((prev) => {
+      const updated = [...prev];
+      const last = { ...updated[updated.length - 1] };
+      last.content = (last.content || '') + bufferedToken;
+      last.streamingStep = null;
+      updated[updated.length - 1] = last;
+      return updated;
+    });
+
+    if (immediate && tokenTimerRef.current) {
+      clearTimeout(tokenTimerRef.current);
+      tokenTimerRef.current = null;
+    }
+  }, [setMessages]);
+
+  const scheduleTokenFlush = useCallback(() => {
+    if (tokenTimerRef.current) return;
+    tokenTimerRef.current = setTimeout(() => {
+      tokenTimerRef.current = null;
+      flushTokenBuffer();
+    }, 16);
+  }, [flushTokenBuffer]);
+
+  useEffect(() => () => {
+    if (tokenTimerRef.current) {
+      clearTimeout(tokenTimerRef.current);
+      tokenTimerRef.current = null;
+    }
+  }, []);
 
   const sendMessage = useCallback(async (question, conversationId) => {
     setIsStreaming(true);
@@ -41,6 +77,10 @@ export default function useChatStream({
             let payload;
             try { payload = JSON.parse(line.slice(6)); } catch { continue; }
 
+            if (eventType !== 'token') {
+              flushTokenBuffer(true);
+            }
+
             if (eventType === 'conversation') {
               setConversationState(payload.conversation_id);
               onConversationCreated?.();
@@ -66,16 +106,8 @@ export default function useChatStream({
                 return updated;
               });
             } else if (eventType === 'token') {
-              flushSync(() => {
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const last = { ...updated[updated.length - 1] };
-                  last.content = (last.content || '') + payload.content;
-                  last.streamingStep = null;
-                  updated[updated.length - 1] = last;
-                  return updated;
-                });
-              });
+              tokenBufferRef.current += payload.content || '';
+              scheduleTokenFlush();
             } else if (eventType === 'generating_tree') {
               setMessages((prev) => {
                 const updated = [...prev];
@@ -123,6 +155,7 @@ export default function useChatStream({
           }
         }
       }
+      flushTokenBuffer(true);
       // 流读取完毕，确保 streaming 标志关闭
       setMessages((prev) => {
         const updated = [...prev];
@@ -133,6 +166,7 @@ export default function useChatStream({
         return updated;
       });
     } catch (error) {
+      flushTokenBuffer(true);
       if (error.name !== 'AbortError') {
         setMessages((prev) => {
           const updated = [...prev];
@@ -146,9 +180,19 @@ export default function useChatStream({
         });
       }
     } finally {
+      flushTokenBuffer(true);
       setIsStreaming(false);
     }
-  }, [setMessages, setConversationState, abortControllerRef, onConversationCreated, routeConversationId, navigate]);
+  }, [
+    setMessages,
+    setConversationState,
+    abortControllerRef,
+    onConversationCreated,
+    routeConversationId,
+    navigate,
+    flushTokenBuffer,
+    scheduleTokenFlush,
+  ]);
 
   const resetStreaming = useCallback(() => {
     abortControllerRef.current?.abort();

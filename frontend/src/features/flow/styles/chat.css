@@ -167,6 +167,9 @@
   color: var(--fc-user-bubble-text);
   word-break: break-word;
   min-width: 0;
+  width: fit-content;
+  max-width: 85%;
+  margin-left: auto;
 }
 
 .fc-assistant-bubble {
@@ -178,6 +181,80 @@
   color: var(--fc-text-primary);
   word-break: break-word;
   min-width: 0;
+}
+
+.fc-markdown.markdown-body {
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.fc-markdown.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.fc-markdown.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.fc-markdown.markdown-body h1,
+.fc-markdown.markdown-body h2,
+.fc-markdown.markdown-body h3,
+.fc-markdown.markdown-body h4,
+.fc-markdown.markdown-body h5,
+.fc-markdown.markdown-body h6 {
+  margin-top: 1.4em;
+  margin-bottom: 0.6em;
+  line-height: 1.35;
+}
+
+.fc-markdown.markdown-body h1 { font-size: 1.45em; }
+.fc-markdown.markdown-body h2 { font-size: 1.25em; }
+.fc-markdown.markdown-body h3 { font-size: 1.1em; }
+
+/* 列表：统一为精致小圆点，替代默认 disc/circle/square */
+.fc-markdown.markdown-body ul {
+  list-style: none;
+  padding-left: 1.5em;
+}
+
+.fc-markdown.markdown-body ul > li {
+  position: relative;
+}
+
+.fc-markdown.markdown-body ul > li::before {
+  content: '';
+  position: absolute;
+  left: -1.1em;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b0b8c4;
+}
+
+/* 嵌套列表缩进适当减小 */
+.fc-markdown.markdown-body ul ul {
+  padding-left: 1.3em;
+}
+
+/* 有序列表统一颜色 */
+.fc-markdown.markdown-body ol {
+  padding-left: 1.5em;
+}
+
+.fc-markdown.markdown-body ol > li::marker {
+  color: #9ca3af;
+}
+
+.fc-markdown.markdown-body li + li {
+  margin-top: 0.25em;
+}
+
+.fc-markdown.markdown-body pre {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* T005: 故障树卡片类（内嵌在聊天消息中） */
