@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Network, Shield, Zap, CheckCircle2, GitBranch, TrendingUp, Users, Award, Sparkles, Code, FileJson } from 'lucide-react';
+import { ArrowRight, Network, Shield, Zap, GitBranch, TrendingUp, Users, Award, Sparkles, Code, FileJson } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
-import { ImageWithFallback } from '../../ui/ImageWithFallback';
 import { motion } from 'motion/react';
 
 export default function Home() {
-  const [hoveredFeature, setHoveredFeature] = useState(null);
 
   const stats = [
-    { label: '活跃用户', value: '10,000+', icon: Users },
-    { label: '创建的故障树', value: '50,000+', icon: GitBranch },
+    { label: '代码行数', value: '38352', icon: Users },
+    { label: '论文篇数', value: '50,000+', icon: GitBranch },
     { label: '分析准确率', value: '99.9%', icon: Award },
-    { label: '项目完成', value: '25,000+', icon: TrendingUp },
+    { label: '响应时间', value: '30-60s', icon: TrendingUp },
   ];
 
   const features = [
@@ -62,194 +60,82 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          className="absolute top-20 left-10 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-10 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.3, 1],
-            x: [0, -30, 0],
-            y: [0, -50, 0],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 180, 360],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-        />
-      </div>
-
-      {/* Navigation */}
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100 }}
-        className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm"
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <motion.div
-            className="flex items-center gap-2"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400 }}
-          >
-            <div className="relative">
-              <GitBranch className="h-6 w-6 text-blue-600" />
-              <motion.div
-                className="absolute inset-0 bg-blue-400 rounded-full blur-md opacity-50"
-                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.3, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              EET Fault Tree
-            </span>
-          </motion.div>
-          <Link to="/flow">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button className="gap-2 shadow-lg shadow-blue-500/20">
-                启动编辑器
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </motion.div>
-          </Link>
+    <div className="min-h-screen bg-slate-50 overflow-hidden">
+      {/* Hero Section - Full screen blurred background */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {/* Blurred background image */}
+        <div className="absolute inset-0">
+          <img
+            src="/faulttree.png"
+            alt=""
+            className="w-full h-full object-cover scale-110 blur-sm"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/50 to-slate-900/70" />
         </div>
-      </motion.nav>
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 py-20 relative">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Centered content */}
+        <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           <motion.div
-            className="space-y-6"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
+            className="mb-6"
           >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-block"
-            >
-              <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full text-sm font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                让可靠性工程变得简单
-              </div>
-            </motion.div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium border border-white/20">
+              <Sparkles className="h-4 w-4" />
+              专业故障树分析平台
+            </div>
+          </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-5xl lg:text-6xl font-bold leading-tight"
-            >
-              精准高效构建
-              <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                专业故障树
-              </span>
-            </motion.h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
+          >
+            精准高效构建
+            <span className="block bg-gradient-to-r from-blue-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent mt-2">
+              专业故障树
+            </span>
+          </motion.h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-xl text-gray-600 leading-relaxed"
-            >
-              专为安全工程师、可靠性专家和风险分析师设计的专业故障树分析工具。
-              通过直观的可视化界面创建、分析和导出故障树。
-            </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-lg md:text-xl text-white/80 leading-relaxed mb-10 max-w-2xl mx-auto"
+          >
+            专为安全工程师、可靠性专家和风险分析师设计的专业故障树分析工具。
+            通过直观的可视化界面创建、分析和导出故障树。
+          </motion.p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="flex gap-4 pt-4"
-            >
-              <Link to="/flow">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button size="lg" className="gap-2 text-base h-12 px-8 shadow-xl shadow-blue-500/30 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    开始使用
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </motion.div>
-              </Link>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <Link to="/flow">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button size="lg" variant="outline" className="text-base h-12 px-8 border-2">
-                  了解更多
+                <Button size="lg" className="gap-2 text-base h-14 px-10 shadow-2xl shadow-blue-500/40 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold">
+                  启动编辑器
+                  <ArrowRight className="h-5 w-5" />
                 </Button>
               </motion.div>
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            className="relative"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-tr from-blue-600/30 to-purple-600/30 rounded-3xl blur-3xl"
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              whileHover={{ scale: 1.02, rotate: 2 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1773148374151-ba5658056828?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbmdpbmVlcmluZyUyMHRlY2hub2xvZ3klMjBtb2Rlcm58ZW58MXx8fHwxNzc0ODY3MjMxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Engineering Technology"
-                className="relative rounded-2xl shadow-2xl w-full h-auto ring-1 ring-gray-200/50"
-              />
-            </motion.div>
-
-            {/* Floating Cards */}
-            <motion.div
-              className="absolute -left-8 top-20 bg-white rounded-xl shadow-xl p-4 border border-gray-100"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-sm">分析完成</div>
-                  <div className="text-xs text-gray-500">准确率 99.9%</div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="absolute -right-8 bottom-20 bg-white rounded-xl shadow-xl p-4 border border-gray-100"
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, delay: 1 }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-semibold text-sm">实时更新</div>
-                  <div className="text-xs text-gray-500">协作无延迟</div>
-                </div>
-              </div>
-            </motion.div>
+            </Link>
           </motion.div>
         </div>
+
+        {/* Scroll indicator */}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center pt-2">
+            <div className="w-1.5 h-3 bg-white/50 rounded-full" />
+          </div>
+        </motion.div>
       </section>
 
       {/* Stats Section */}
@@ -314,8 +200,7 @@ export default function Home() {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -8 }}
-              onHoverStart={() => setHoveredFeature(index)}
-              onHoverEnd={() => setHoveredFeature(null)}
+
             >
               <Card className="p-6 h-full hover:shadow-2xl transition-all border-2 hover:border-transparent relative overflow-hidden group">
                 {/* Animated gradient background on hover */}
@@ -344,9 +229,9 @@ export default function Home() {
       <section className="bg-gradient-to-b from-blue-50/50 via-purple-50/50 to-white py-20 relative">
         {/* Decorative background pattern */}
         <div className="absolute inset-0 opacity-5">
-          <ImageWithFallback
-            src="https://images.unsplash.com/photo-1595411425732-e69c1abe2763?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHBhdHRlcm58ZW58MXx8fHwxNzc0ODY3OTE4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-            alt="Pattern"
+          <img
+            src="/faulttree.png"
+            alt=""
             className="w-full h-full object-cover"
           />
         </div>
@@ -366,8 +251,8 @@ export default function Home() {
                 className="relative"
               >
                 <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-3xl blur-2xl" />
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1664526937033-fe2c11f1be25?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuZXR3b3JrJTIwZGlhZ3JhbSUyMGJsdWVwcmludHxlbnwxfHx8fDE3NzQ4NjcyMzF8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                <img
+                  src="/faulttree.png"
                   alt="Network Diagram"
                   className="rounded-2xl shadow-2xl w-full h-auto relative ring-1 ring-gray-200/50"
                 />
@@ -433,31 +318,31 @@ export default function Home() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl font-bold mb-4">用户评价</h2>
-          <p className="text-xl text-gray-600">看看专业人士如何评价我们</p>
+          <h2 className="text-4xl font-bold mb-4">开发人员</h2>
+          <p className="text-xl text-gray-600">主要开发人员名单</p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              name: '李明',
-              role: '航空安全工程师',
+              name: '唐宏健',
+              role: '全栈工程师',
               company: '中国航空集团',
               content: '这个工具大大提高了我们的故障树分析效率，界面直观，功能强大。',
-              avatar: '👨‍✈️',
+              avatar: '👨‍💻',   
             },
             {
-              name: '王芳',
-              role: '可靠性分析专家',
+              name: '周博文',
+              role: '后端工程师',
               company: '华为技术有限公司',
               content: '导出功能非常实用，可以轻松与团队分享分析结果，协作更加顺畅。',
               avatar: '👩‍💼',
             },
             {
-              name: '张伟',
-              role: '风险管理总监',
+              name: '刘益铭',
+              role: '前端工程师',
               company: '中国石化',
-              content: '支持多种门类型，符合行业标准，是我们日常工作的得力助手。',
+              content: '负责前端开发，使用React和Tailwind CSS构建了这个响应式界面，进行了大量的动画和交互设计，提升用户体验。',
               avatar: '👨‍💻',
             },
           ].map((testimonial, index) => (
@@ -510,9 +395,9 @@ export default function Home() {
             />
 
             <div className="absolute inset-0 opacity-10">
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1615774925655-a0e97fc85c14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZWxpYWJpbGl0eSUyMGVuZ2luZWVyaW5nJTIwc2FmZXR5fGVufDF8fHx8MTc3NDg2NzIzMnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Background"
+              <img
+                src="/faulttree.png"
+                alt=""
                 className="w-full h-full object-cover"
               />
             </div>
