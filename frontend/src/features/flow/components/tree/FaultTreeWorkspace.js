@@ -13,6 +13,10 @@ import '../../styles/tree.css';
 function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
   const [variant, setVariant] = useState('cross');
   const [faultTreeId, setFaultTreeId] = useState(null);
   const [faultTreeName, setFaultTreeName] = useState('');
@@ -196,6 +200,48 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
     setNodes((snapshot) => snapshot.concat(newGateNode));
   }, [screenToFlowPosition]);
 
+  const toggleCollapse = useCallback((nodeId) => {
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const node = currentNodes.find(n => n.id === nodeId);
+    const newCollapsed = !node?.data?.collapsed;
+
+    const collapsedIds = new Set();
+    currentNodes.forEach(n => {
+      if (n.id === nodeId) {
+        if (newCollapsed) collapsedIds.add(n.id);
+      } else if (n.data?.collapsed) {
+        collapsedIds.add(n.id);
+      }
+    });
+
+    const hiddenIds = new Set();
+    const addDescendants = (id, visited = new Set()) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      currentEdges.filter(e => e.source === id).forEach(e => {
+        hiddenIds.add(e.target);
+        addDescendants(e.target, visited);
+      });
+    };
+    collapsedIds.forEach(id => addDescendants(id));
+
+    setNodes(prev => prev.map(n => ({
+      ...n,
+      data: n.id === nodeId ? { ...n.data, collapsed: newCollapsed } : n.data,
+      hidden: hiddenIds.has(n.id),
+    })));
+  }, []);
+
+  const enrichedNodes = useMemo(() => {
+    const hasChildrenSet = new Set();
+    edges.forEach(e => hasChildrenSet.add(e.source));
+    return nodes.map(n => ({
+      ...n,
+      data: { ...n.data, hasChildren: hasChildrenSet.has(n.id), onToggleCollapse: toggleCollapse },
+    }));
+  }, [nodes, edges, toggleCollapse]);
+
   return (
     <div className="fc-tree-workspace">
       <input
@@ -232,7 +278,7 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
 
         <div className="fc-tree-canvas" ref={flowWrapperRef}>
           <ReactFlow
-            nodes={nodes}
+            nodes={enrichedNodes}
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
