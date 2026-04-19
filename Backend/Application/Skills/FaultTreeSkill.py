@@ -17,7 +17,7 @@ FAULT_TREE_TOOLS = [
                 "根据用户描述和文档上下文生成或更新一棵故障树。"
                 "当用户要求生成故障树、分析故障原因、构建故障分析模型时调用此工具。"
                 "故障树由事件节点(event)和逻辑门节点(gate)以及连接边组成。"
-                "顶层事件是根节点，通过逻辑门(AND/OR)连接到下层事件。"
+                "顶层事件是根节点，通过逻辑门(AND/OR/XOR/INHIBIT/PRIORITY_AND)连接到下层事件。"
             ),
             "parameters": {
                 "type": "object",
@@ -47,7 +47,7 @@ FAULT_TREE_TOOLS = [
                                 },
                                 "gate_type": {
                                     "type": "string",
-                                    "enum": ["AND", "OR"],
+                                    "enum": ["AND", "OR", "XOR", "INHIBIT", "PRIORITY_AND"],
                                     "description": "逻辑门类型，仅当 node_type 为 gate 时需要",
                                 },
                                 "remark": {
@@ -115,7 +115,7 @@ FAULT_TREE_TOOLS = [
                                 },
                                 "gate_type": {
                                     "type": "string",
-                                    "enum": ["AND", "OR"],
+                                    "enum": ["AND", "OR", "XOR", "INHIBIT", "PRIORITY_AND"],
                                     "description": "逻辑门类型，仅 gate 节点需要",
                                 },
                                 "remark": {"type": "string", "description": "备注信息"},

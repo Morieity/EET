@@ -14,6 +14,115 @@ import '../../styles/chat.css';
 
 const { TextArea } = Input;
 
+const ChatMessageItem = React.memo(function ChatMessageItem({
+  msg,
+  index,
+  conversationId,
+  handleViewFaultTree,
+}) {
+  let faultTree = msg.faultTree;
+  let displayContent = msg.content;
+
+  if (!faultTree && msg.role === 'assistant' && !msg.streaming && msg.content) {
+    const extracted = extractFaultTreeFromText(msg.content);
+    if (extracted) {
+      faultTree = extracted.tree;
+      displayContent = extracted.cleanedContent;
+    }
+  } else if (faultTree) {
+    const extracted = extractFaultTreeFromText(msg.content);
+    displayContent = extracted ? extracted.cleanedContent : msg.content;
+  }
+
+  if (faultTree && msg.faultTreeId && !faultTree.id) {
+    faultTree = { ...faultTree, id: msg.faultTreeId };
+  }
+
+  if (faultTree && !faultTree.conversation_id && conversationId) {
+    faultTree = { ...faultTree, conversation_id: conversationId };
+  }
+
+  const sourcesNode = !msg.sources || msg.sources.length === 0
+    ? null
+    : (
+      <Collapse
+        ghost
+        size="small"
+        items={[{
+          key: `src-${index}`,
+          label: <span style={{ fontSize: 12, color: '#40b586' }}>查看知识来源 ({msg.sources.length})</span>,
+          children: (
+            <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+              {msg.sources.map((src, i) => (
+                <div key={i} style={{ marginBottom: 6, paddingBottom: 4, borderBottom: i < msg.sources.length - 1 ? '1px dashed #eee' : 'none', fontSize: 12, color: '#888' }}>
+                  <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.file_name}</div>
+                  <div>{src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}</div>
+                </div>
+              ))}
+            </div>
+          ),
+        }]}
+        style={{ marginTop: 4 }}
+      />
+    );
+
+  return (
+    <div className={`fc-msg-row ${msg.role === 'user' ? 'fc-msg-row--user' : ''}`}>
+      <div className={`fc-avatar ${msg.role === 'user' ? 'fc-avatar--user' : 'fc-avatar--assistant'}`}>
+        {msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+      </div>
+      <div style={{ maxWidth: '100%', minWidth: 0, flex: 1 }}>
+        {msg.role !== 'user' && msg.intent && (
+          <div style={{ marginBottom: 3 }}>
+            <Tag color={INTENT_CONFIG[msg.intent]?.color || '#999'} style={{ fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>
+              {INTENT_CONFIG[msg.intent]?.label || msg.intent}
+            </Tag>
+          </div>
+        )}
+        <div className={msg.role === 'user' ? 'fc-user-bubble' : 'fc-assistant-bubble'}>
+          {msg.role === 'user' ? (
+            <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+          ) : (
+            <div className="markdown-body fc-markdown">
+              <ReactMarkdown components={{
+                pre: ({ children }) => {
+                  const src = children?.props?.children ? String(children.props.children) : '';
+                  if (
+                    src.includes('"fault_tree"') || src.includes('"top_event"') ||
+                    src.includes('"gates"') || src.includes('"basic_events"') ||
+                    (src.includes('"nodes"') && src.includes('"edges"'))
+                  ) return null;
+                  return <pre>{children}</pre>;
+                },
+              }}>
+                {displayContent}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+        {msg.role !== 'user' && sourcesNode}
+        {msg.streaming && msg.streamingStep && !msg.content && (
+          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--fc-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Spin size="small" /> <span>{msg.streamingStep}</span>
+          </div>
+        )}
+        {!faultTree && msg.generatingTree && (
+          <div className="fc-fault-tree-card" style={{ marginTop: 8 }}>
+            <div className="fc-fault-tree-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ApartmentOutlined style={{ color: '#8e44ad' }} />
+                <LoadingOutlined style={{ color: '#8e44ad' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fc-text-muted)' }}>故障树加载中...</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {faultTree && <FaultTreeCard tree={faultTree} onView={handleViewFaultTree} />}
+      </div>
+    </div>
+  );
+});
+
 export default function AiChatPanel({ initialConversationId, injectedTree, onInjected, onConversationCreated, onViewFaultTree }) {
   const navigate = useNavigate();
   const { conversationId: routeConversationId } = useParams();
@@ -59,16 +168,16 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
     const clientHeight = container.clientHeight;
     // 如果用户滚动到底部附近（距离底部 100px 以内），启用自动滚动
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    
-    setShouldAutoScroll(isNearBottom);
+
+    setShouldAutoScroll((prev) => (prev === isNearBottom ? prev : isNearBottom));
   }, []);
 
   // 每次消息更新后自动滚动到底部（如果用户在底部）
   useEffect(() => {
     if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' });
     }
-  }, [messages, shouldAutoScroll]);
+  }, [messages, shouldAutoScroll, isLoading]);
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -153,25 +262,6 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
     }
   };
 
-  const renderSources = (sources, index) => {
-    if (!sources || sources.length === 0) return null;
-    const items = [{
-      key: `src-${index}`,
-      label: <span style={{ fontSize: 12, color: '#40b586' }}>查看知识来源 ({sources.length})</span>,
-      children: (
-        <div style={{ maxHeight: 120, overflowY: 'auto' }}>
-          {sources.map((src, i) => (
-            <div key={i} style={{ marginBottom: 6, paddingBottom: 4, borderBottom: i < sources.length - 1 ? '1px dashed #eee' : 'none', fontSize: 12, color: '#888' }}>
-              <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.file_name}</div>
-              <div>{src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}</div>
-            </div>
-          ))}
-        </div>
-      ),
-    }];
-    return <Collapse ghost size="small" items={items} style={{ marginTop: 4 }} />;
-  };
-
   return (
     <div className={`fc-chat-split-container ${activeTree ? 'fc-chat-split-container--split' : ''}`}>
     <div className="fc-chat-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: activeTree ? `0 0 ${splitRatio}%` : 1, maxWidth: activeTree ? `${splitRatio}%` : undefined, minHeight: 0, background: 'var(--fc-main-bg)' }}>
@@ -214,100 +304,15 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
         {messages.length === 0 && (
           <Empty description="开始一段故障诊断对话" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
-        {messages.map((msg, index) => {
-          // 计算有效故障树和展示内容
-          let faultTree = msg.faultTree;
-          let displayContent = msg.content;
-          if (!faultTree && msg.role === 'assistant' && !msg.streaming && msg.content) {
-            const extracted = extractFaultTreeFromText(msg.content);
-            if (extracted) {
-              faultTree = extracted.tree;
-              displayContent = extracted.cleanedContent;
-            }
-          } else if (faultTree) {
-            // SSE 已提供故障树，仅过滤内容中的 JSON
-            const extracted = extractFaultTreeFromText(msg.content);
-            displayContent = extracted ? extracted.cleanedContent : msg.content;
-          }
-
-          if (faultTree && msg.faultTreeId && !faultTree.id) {
-            faultTree = { ...faultTree, id: msg.faultTreeId };
-          }
-          if (faultTree && !faultTree.conversation_id && conversationIdRef.current) {
-            faultTree = { ...faultTree, conversation_id: conversationIdRef.current };
-          }
-
-          return (
-          <div key={index} className={`fc-msg-row ${msg.role === 'user' ? 'fc-msg-row--user' : ''}`}>
-            {/* 头像 */}
-            <div className={`fc-avatar ${msg.role === 'user' ? 'fc-avatar--user' : 'fc-avatar--assistant'}`}>
-              {msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-            </div>
-            <div style={{ maxWidth: msg.role === 'user' ? '100%' : '100%', minWidth: 0, flex: 1 }}>
-              {/* 意图标签 */}
-              {msg.role !== 'user' && msg.intent && (
-                <div style={{ marginBottom: 3 }}>
-                  <Tag color={INTENT_CONFIG[msg.intent]?.color || '#999'} style={{ fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>
-                    {INTENT_CONFIG[msg.intent]?.label || msg.intent}
-                  </Tag>
-                </div>
-              )}
-              {/* 消息气泡 */}
-              <div className={msg.role === 'user' ? 'fc-user-bubble' : 'fc-assistant-bubble'}>
-                {msg.role === 'user' ? (
-                  <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
-                ) : (
-                  <div className="markdown-body">
-                    <ReactMarkdown components={{
-                      p: ({ children }) => <p style={{ margin: '3px 0' }}>{children}</p>,
-                      ul: ({ children }) => <ul style={{ margin: '3px 0', paddingLeft: 18 }}>{children}</ul>,
-                      ol: ({ children }) => <ol style={{ margin: '3px 0', paddingLeft: 18 }}>{children}</ol>,
-                      li: ({ children }) => <li style={{ margin: '1px 0' }}>{children}</li>,
-                      strong: ({ children }) => <strong style={{ color: 'var(--fc-text-primary)' }}>{children}</strong>,
-                      h3: ({ children }) => <div style={{ fontWeight: 600, fontSize: 14, margin: '4px 0 2px' }}>{children}</div>,
-                      pre: ({ children }) => {
-                        // 检测疑似故障树 JSON 代码块并隐藏
-                        const src = children?.props?.children ? String(children.props.children) : '';
-                        if (src.includes('"fault_tree"') || src.includes('"top_event"') ||
-                            src.includes('"gates"') || src.includes('"basic_events"') ||
-                            (src.includes('"nodes"') && src.includes('"edges"'))) return null;
-                        return <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 6, overflow: 'auto', fontSize: 12 }}>{children}</pre>;
-                      },
-                      code: ({ children }) => (
-                        <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>{children}</code>
-                      ),
-                      hr: () => <hr style={{ border: 'none', borderTop: '1px solid var(--fc-main-border)', margin: '6px 0' }} />,
-                    }}>
-                      {displayContent}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-              {/* 知识来源 */}
-              {msg.role !== 'user' && renderSources(msg.sources, index)}
-              {/* 流式步骤指示器 */}
-              {msg.streaming && msg.streamingStep && !msg.content && (
-                <div style={{ marginTop: 4, fontSize: 12, color: 'var(--fc-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Spin size="small" /> <span>{msg.streamingStep}</span>
-                </div>
-              )}
-              {/* 故障树卡片 */}
-              {!faultTree && msg.generatingTree && (
-                <div className="fc-fault-tree-card" style={{ marginTop: 8 }}>
-                  <div className="fc-fault-tree-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <ApartmentOutlined style={{ color: '#8e44ad' }} />
-                      <LoadingOutlined style={{ color: '#8e44ad' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fc-text-muted)' }}>故障树加载中...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {faultTree && <FaultTreeCard tree={faultTree} onView={handleViewFaultTree} />}
-            </div>
-          </div>
-          );
-        })}
+        {messages.map((msg, index) => (
+          <ChatMessageItem
+            key={msg.id || index}
+            msg={msg}
+            index={index}
+            conversationId={conversationIdRef.current}
+            handleViewFaultTree={handleViewFaultTree}
+          />
+        ))}
 
         <div ref={messagesEndRef} />
         </div>

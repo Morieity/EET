@@ -6,6 +6,10 @@ class EntityType(Enum):
     SYMPTOM = "SYMPTOM"
     ERROR_CODE = "ERROR_CODE"
     SOLUTION = "SOLUTION"
+    DEVICE = "DEVICE"
+    FAULT_MODE = "FAULT_MODE"
+    WORK_ORDER = "WORK_ORDER"
+    CAUSE = "CAUSE"
 
 
 class RelationType(Enum):
@@ -13,3 +17,7 @@ class RelationType(Enum):
     BELONGS_TO = "BELONGS_TO"
     RESOLVES = "RESOLVES"
     DIAGNOSES = "DIAGNOSES"
+    HAS_FAULT = "HAS_FAULT"
+    ROOT_CAUSE_OF = "ROOT_CAUSE_OF"
+    TREATED_BY = "TREATED_BY"
+    RECORDED_IN = "RECORDED_IN"
