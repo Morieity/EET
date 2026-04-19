@@ -19,8 +19,8 @@ export default function Home() {
       icon: Network,
       title: '可视化编辑器',
       description: '直观的拖放界面，轻松构建复杂故障树。添加门、事件和连接，一切尽在掌握。',
-      color: 'blue',
-      gradient: 'from-blue-500 to-cyan-500',
+      color: 'green',
+      gradient: 'from-[#A9D098] to-[#4C9755]',
     },
     {
       icon: Shield,
@@ -33,8 +33,8 @@ export default function Home() {
       icon: Zap,
       title: '导出与分享',
       description: '将故障树导出为JSON格式，便于协作和文档记录。导入现有树继续工作。',
-      color: 'purple',
-      gradient: 'from-purple-500 to-pink-500',
+      color: 'green',
+      gradient: 'from-[#A9D098] to-[#4C9755]',
     },
     {
       icon: Code,
@@ -47,8 +47,8 @@ export default function Home() {
       icon: FileJson,
       title: '数据导入导出',
       description: '支持多种格式的数据导入导出，与现有工具无缝集成，提高工作效率。',
-      color: 'indigo',
-      gradient: 'from-indigo-500 to-purple-500',
+      color: 'green',
+      gradient: 'from-[#A9D098] to-[#4C9755]',
     },
     {
       icon: Sparkles,
@@ -60,7 +60,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 overflow-hidden">
+    <div className="min-h-screen bg-white overflow-hidden">
       {/* Hero Section - Full screen blurred background */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Blurred background image */}
@@ -68,9 +68,9 @@ export default function Home() {
           <img
             src="/faulttree.png"
             alt=""
-            className="w-full h-full object-cover scale-110 blur-sm"
+            className="w-full h-full object-cover scale-110 blur-[12px] brightness-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/50 to-slate-900/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-[#A9D098]/30 to-white/80" />
         </div>
 
         {/* Centered content */}
@@ -81,7 +81,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="mb-6"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium border border-white/20">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#4C9755]/10 backdrop-blur-sm text-[#4C9755] rounded-full text-sm font-medium border border-[#4C9755]/20">
               <Sparkles className="h-4 w-4" />
               专业故障树分析平台
             </div>
@@ -91,10 +91,10 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6"
+            className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-800 leading-tight mb-6"
           >
             精准高效构建
-            <span className="block bg-gradient-to-r from-blue-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent mt-2">
+            <span className="block bg-gradient-to-r from-[#A9D098] via-[#7AB87E] to-[#4C9755] bg-clip-text text-transparent mt-2">
               专业故障树
             </span>
           </motion.h1>
@@ -103,7 +103,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-lg md:text-xl text-white/80 leading-relaxed mb-10 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-gray-600 leading-relaxed mb-10 max-w-2xl mx-auto"
           >
             专为安全工程师、可靠性专家和风险分析师设计的专业故障树分析工具。
             通过直观的可视化界面创建、分析和导出故障树。
@@ -117,7 +117,7 @@ export default function Home() {
           >
             <Link to="/flow">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button size="lg" className="gap-2 text-base h-14 px-10 shadow-2xl shadow-blue-500/40 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 font-semibold">
+                <Button size="lg" className="gap-2 text-base h-14 px-10 shadow-2xl shadow-[#4C9755]/40 bg-gradient-to-r from-[#A9D098] to-[#4C9755] hover:from-[#8AB880] hover:to-[#3A7341] font-semibold">
                   启动编辑器
                   <ArrowRight className="h-5 w-5" />
                 </Button>
@@ -132,8 +132,8 @@ export default function Home() {
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center pt-2">
-            <div className="w-1.5 h-3 bg-white/50 rounded-full" />
+          <div className="w-6 h-10 border-2 border-[#4C9755]/30 rounded-full flex justify-center pt-2">
+            <div className="w-1.5 h-3 bg-[#4C9755]/50 rounded-full" />
           </div>
         </motion.div>
       </section>
@@ -156,9 +156,9 @@ export default function Home() {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
             >
-              <Card className="p-6 text-center border-2 hover:border-blue-300 transition-all hover:shadow-lg">
-                <stat.icon className="h-8 w-8 mx-auto mb-3 text-blue-600" />
-                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <Card className="p-6 text-center border-2 hover:border-[#A9D098] transition-all hover:shadow-lg">
+                <stat.icon className="h-8 w-8 mx-auto mb-3 text-[#4C9755]" />
+                <div className="text-3xl font-bold bg-gradient-to-r from-[#A9D098] to-[#4C9755] bg-clip-text text-transparent">
                   {stat.value}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">{stat.label}</div>
@@ -183,7 +183,7 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 200 }}
             className="inline-block mb-4"
           >
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 bg-gradient-to-r from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mx-auto">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
           </motion.div>
@@ -226,7 +226,7 @@ export default function Home() {
       </section>
 
       {/* Use Cases Section */}
-      <section className="bg-gradient-to-b from-blue-50/50 via-purple-50/50 to-white py-20 relative">
+      <section className="bg-gradient-to-b from-[#A9D098]/10 via-[#4C9755]/10 to-white py-20 relative">
         {/* Decorative background pattern */}
         <div className="absolute inset-0 opacity-5">
           <img
@@ -250,7 +250,7 @@ export default function Home() {
                 transition={{ type: "spring", stiffness: 300 }}
                 className="relative"
               >
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-3xl blur-2xl" />
+                <div className="absolute -inset-4 bg-gradient-to-r from-[#A9D098]/20 to-[#4C9755]/20 rounded-3xl blur-2xl" />
                 <img
                   src="/faulttree.png"
                   alt="Network Diagram"
@@ -266,7 +266,7 @@ export default function Home() {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="inline-block px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full text-sm font-medium">
+              <div className="inline-block px-4 py-2 bg-gradient-to-r from-[#A9D098]/30 to-[#4C9755]/30 text-[#4C9755] rounded-full text-sm font-medium">
                 行业应用
               </div>
               <h2 className="text-4xl font-bold">适用于多个行业</h2>
@@ -299,7 +299,7 @@ export default function Home() {
                     >
                       <span>{industry.icon}</span>
                     </motion.div>
-                    <span className="text-lg font-medium group-hover:text-blue-600 transition-colors">
+                    <span className="text-lg font-medium group-hover:text-[#4C9755] transition-colors">
                       {industry.name}
                     </span>
                   </motion.li>
@@ -354,9 +354,9 @@ export default function Home() {
               transition={{ delay: index * 0.2 }}
               whileHover={{ y: -5 }}
             >
-              <Card className="p-6 h-full border-2 hover:border-blue-300 hover:shadow-xl transition-all">
+              <Card className="p-6 h-full border-2 hover:border-[#A9D098] hover:shadow-xl transition-all">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#A9D098] to-[#4C9755] rounded-full flex items-center justify-center text-2xl">
                     {testimonial.avatar}
                   </div>
                   <div>
@@ -365,7 +365,7 @@ export default function Home() {
                   </div>
                 </div>
                 <p className="text-gray-600 italic mb-4">"{testimonial.content}"</p>
-                <div className="text-sm text-blue-600 font-medium">{testimonial.company}</div>
+                <div className="text-sm text-[#4C9755] font-medium">{testimonial.company}</div>
               </Card>
             </motion.div>
           ))}
@@ -381,7 +381,7 @@ export default function Home() {
           transition={{ duration: 0.6 }}
           className="relative"
         >
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 text-center text-white relative overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-r from-[#A9D098] via-[#7AB87E] to-[#4C9755] rounded-3xl p-12 text-center text-white relative overflow-hidden shadow-2xl">
             {/* Animated background elements */}
             <motion.div
               className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"
@@ -459,13 +459,13 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-gradient-to-b from-slate-50 to-slate-100 py-12">
+      <footer className="border-t bg-gradient-to-b from-white to-[#A9D098]/10 py-12">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <GitBranch className="h-5 w-5 text-blue-600" />
-                <span className="font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <GitBranch className="h-5 w-5 text-[#4C9755]" />
+                <span className="font-bold bg-gradient-to-r from-[#A9D098] to-[#4C9755] bg-clip-text text-transparent">
                   EET Fault Tree
                 </span>
               </div>
@@ -477,25 +477,25 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">产品</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">功能特性</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">定价方案</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">案例研究</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">功能特性</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">定价方案</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">案例研究</span></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">资源</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">文档中心</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">教程视频</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">API 文档</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">文档中心</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">教程视频</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">API 文档</span></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">公司</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">关于我们</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">联系方式</span></li>
-                <li><span className="hover:text-blue-600 transition-colors cursor-pointer">加入我们</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">关于我们</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">联系方式</span></li>
+                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">加入我们</span></li>
               </ul>
             </div>
           </div>
