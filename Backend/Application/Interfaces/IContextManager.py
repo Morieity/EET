@@ -18,6 +18,7 @@ class IContextManager(ABC):
         graph_paths: list[GraphPath],
         sources: list[ScoredDocument],
         config: ContextManagerConfig | None = None,
+        system_prompt_tokens: int = 0,
     ) -> ContextPreparationResult:
         """Build prompt artifacts in a deterministic orchestration order."""
         pass

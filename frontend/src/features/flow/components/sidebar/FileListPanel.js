@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { List, Button, Tag, Empty, Spin, Popconfirm, Typography } from 'antd';
 import { DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import DocumentUploadPanel from './DocumentUploadPanel';
-import { getFiles, deleteFile } from '../../services/fileApi';
+import { getFiles, deleteFile, openUploadsFolder } from '../../services/fileApi';
 
 const { Text } = Typography;
 
@@ -90,7 +90,12 @@ export default function FileListPanel() {
                 >
                   <List.Item.Meta
                     title={
-                      <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: file.file_name }}>
+                      <Text
+                        style={{ fontSize: 12, color: '#1890ff', cursor: 'pointer' }}
+                        ellipsis={{ tooltip: file.file_name }}
+                        onClick={() => openUploadsFolder().catch(() => {})}
+                        title="打开文件所在文件夹"
+                      >
                         {file.file_name}
                       </Text>
                     }

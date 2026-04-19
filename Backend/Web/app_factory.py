@@ -38,6 +38,11 @@ def _to_bool(value: str | None, default: bool = False) -> bool:
 
 
 def create_app() -> Flask:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+
     app = Flask(__name__)
 
     # 初始化数据库

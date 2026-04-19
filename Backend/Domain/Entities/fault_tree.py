@@ -11,12 +11,14 @@ class FaultTreeNode:
         node_type: NodeType = NodeType.EVENT,
         gate_type: GateType | None = None,
         remark: str = "",
+        sources: list[dict] | None = None,
     ):
         self.id = node_id
         self.label = label
         self.node_type = node_type
         self.gate_type = gate_type
         self.remark = remark
+        self.sources = sources or []
 
     def to_dict(self) -> dict:
         d = {
@@ -24,6 +26,7 @@ class FaultTreeNode:
             "label": self.label,
             "node_type": self.node_type.value,
             "remark": self.remark,
+            "sources": self.sources,
         }
         if self.gate_type:
             d["gate_type"] = self.gate_type.value
@@ -38,6 +41,7 @@ class FaultTreeNode:
             node_type=NodeType(data.get("node_type", "event")),
             gate_type=gate_type,
             remark=data.get("remark", ""),
+            sources=data.get("sources", []),
         )
 
 

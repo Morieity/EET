@@ -13,7 +13,7 @@ class ContextManagerConfig:
 
     max_context_tokens: int = 32000
     max_history_rounds: int = 10
-    mmr_top_k: int = 5
+    mmr_top_k: int = 15
     mmr_relevance_weight: float = 0.7
     # 最小致信度
     min_path_confidence: float = 0.4

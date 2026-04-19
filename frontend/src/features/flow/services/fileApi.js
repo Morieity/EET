@@ -25,3 +25,9 @@ export async function deleteFile(fileName) {
   if (!resp.ok) throw new Error(`Failed to delete file: ${resp.status}`);
   return resp;
 }
+
+export async function openUploadsFolder() {
+  const resp = await fetch('/api/files/open-folder', { method: 'POST' });
+  if (!resp.ok) throw new Error(`Failed to open folder: ${resp.status}`);
+  return resp.json();
+}

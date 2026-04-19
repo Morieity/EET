@@ -136,4 +136,25 @@ def create_file_blueprint(
 
         return Response(event_stream(), mimetype="text/event-stream")
 
+    @file_bp.route("/open-folder", methods=["POST"])
+    def open_uploads_folder():
+        """在系统资源管理器中打开 uploads 文件夹。"""
+        import os
+        import platform
+        import subprocess
+
+        folder = os.path.abspath("uploads")
+        os.makedirs(folder, exist_ok=True)
+        try:
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(folder)
+            elif system == "Darwin":
+                subprocess.Popen(["open", folder])
+            else:
+                subprocess.Popen(["xdg-open", folder])
+            return {"message": "Folder opened"}, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
+
     return file_bp

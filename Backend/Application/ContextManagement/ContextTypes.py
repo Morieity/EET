@@ -28,6 +28,7 @@ class ConversationRoundRecord(TypedDict, total=False):
     answer: str
     prompt: str
     created_at: str
+    fault_tree_id: str
 
 
 class MessageRecord(TypedDict):

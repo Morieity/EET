@@ -87,6 +87,7 @@ class DefaultContextManager(IContextManager):
         graph_paths: list[GraphPath],
         sources: list[ScoredDocument],
         config: ContextManagerConfig | None = None,
+        system_prompt_tokens: int = 0,
     ) -> ContextPreparationResult:
         """Prepare context by deterministic orchestration order.
 
@@ -170,8 +171,11 @@ class DefaultContextManager(IContextManager):
         user_content = self._compose_user_content(question=question, context=context_text)
 
         # 4) Token-budget evaluation.
+        # system_prompt_tokens 包含 SYSTEM_PROMPT + 故障树 skill prompt，
+        # 这部分不可压缩，必须纳入总量估算。
         prompt_token_estimate = (
-            self._estimate_messages_tokens(history_messages)
+            system_prompt_tokens
+            + self._estimate_messages_tokens(history_messages)
             + self._estimate_tokens(user_content)
         )
         budget_plan = self._token_budget.build_plan(cfg.max_context_tokens)
@@ -322,6 +326,7 @@ class DefaultContextManager(IContextManager):
                     "answer": item.answer,
                     "prompt": item.prompt,
                     "created_at": item.created_at.isoformat(),
+                    "fault_tree_id": item.fault_tree_id or "",
                 }
             )
 

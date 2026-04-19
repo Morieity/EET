@@ -18,6 +18,14 @@ FAULT_TREE_TOOLS = [
                 "当用户要求生成故障树、分析故障原因、构建故障分析模型时调用此工具。"
                 "故障树由事件节点(event)和逻辑门节点(gate)以及连接边组成。"
                 "顶层事件是根节点，通过逻辑门(AND/OR/XOR/INHIBIT/PRIORITY_AND)连接到下层事件。"
+                "生成故障树时，请为每个事件节点的 sources 字段标注内容依据："
+                "仅引用本次检索上下文中实际提供的文档片段，"
+                "选取相关度最高的1~3个片段作为来源，"
+                "必须为所有子节点添加来源，且来源必须真实存在于检索结果中。"
+                "file_name 必须与检索结果中的文件名完全一致，"
+                "page_content 截取相关的句子，"
+                "逻辑门节点无需填写 sources。"
+                "需要填写remark字段时，请简要说明该节点的特殊含义或与用户描述的关系。"
             ),
             "parameters": {
                 "type": "object",
@@ -53,6 +61,24 @@ FAULT_TREE_TOOLS = [
                                 "remark": {
                                     "type": "string",
                                     "description": "节点备注信息，可选",
+                                },
+                                "sources": {
+                                    "type": "array",
+                                    "description": "支撑该节点内容的文档来源，仅引用检索上下文中实际存在的文档",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "file_name": {
+                                                "type": "string",
+                                                "description": "文档文件名",
+                                            },
+                                            "page_content": {
+                                                "type": "string",
+                                                "description": "相关原文片段",
+                                            },
+                                        },
+                                        "required": ["file_name", "page_content"],
+                                    },
                                 },
                             },
                             "required": ["id", "label", "node_type"],
@@ -119,6 +145,24 @@ FAULT_TREE_TOOLS = [
                                     "description": "逻辑门类型，仅 gate 节点需要",
                                 },
                                 "remark": {"type": "string", "description": "备注信息"},
+                                "sources": {
+                                    "type": "array",
+                                    "description": "支撑该节点内容的文档来源，仅引用检索上下文中实际存在的文档",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "file_name": {
+                                                "type": "string",
+                                                "description": "文档文件名",
+                                            },
+                                            "page_content": {
+                                                "type": "string",
+                                                "description": "相关原文片段（不超过200字）",
+                                            },
+                                        },
+                                        "required": ["file_name", "page_content"],
+                                    },
+                                },
                             },
                             "required": ["id", "label", "node_type"],
                         },
@@ -183,6 +227,7 @@ class FaultTreeSkill:
                 node_type=NodeType(n.get("node_type", "event")),
                 gate_type=gate_type,
                 remark=n.get("remark", ""),
+                sources=n.get("sources", []),
             )
             nodes.append(node)
 
