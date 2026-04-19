@@ -1,15 +1,59 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Network, Shield, Zap, GitBranch, TrendingUp, Users, Award, Sparkles, Code, FileJson } from 'lucide-react';
+import { ArrowRight, Network, Shield, Zap, GitBranch, TrendingUp, Users, Award, Sparkles, Code, FileJson, BookOpen, Brain } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { motion } from 'motion/react';
 
+const SECTION_LABELS = ['首页', '功能', '应用', '文档', '团队', '关于'];
+const SCROLL_COOLDOWN = 100;
+
 export default function Home() {
+  const [currentSection, setCurrentSection] = useState(0);
+  const isScrolling = useRef(false);
+  const containerRef = useRef(null);
+
+  const totalSections = SECTION_LABELS.length;
+
+  const scrollToSection = useCallback((index) => {
+    if (index < 0 || index >= totalSections || isScrolling.current) return;
+    isScrolling.current = true;
+    setCurrentSection(index);
+    setTimeout(() => { isScrolling.current = false; }, SCROLL_COOLDOWN);
+  }, [totalSections]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      if (isScrolling.current) return;
+      const direction = e.deltaY > 0 ? 1 : -1;
+      scrollToSection(currentSection + direction);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [currentSection, scrollToSection]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        scrollToSection(currentSection + 1);
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        scrollToSection(currentSection - 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSection, scrollToSection]);
 
   const stats = [
     { label: '代码行数', value: '38352', icon: Users },
-    { label: '论文篇数', value: '50,000+', icon: GitBranch },
+    { label: '参考文献', value: '20+', icon: GitBranch },
     { label: '分析准确率', value: '99.9%', icon: Award },
     { label: '响应时间', value: '30-60s', icon: TrendingUp },
   ];
@@ -60,7 +104,43 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
+    <div ref={containerRef} className="h-screen bg-white overflow-hidden relative">
+      {/* Side Navigation Indicator */}
+      <nav className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-3">
+        {SECTION_LABELS.map((label, index) => (
+          <button
+            key={label}
+            onClick={() => scrollToSection(index)}
+            className="group relative flex items-center"
+            aria-label={`跳转到${label}`}
+          >
+            <span className={`
+              absolute right-8 px-2 py-1 rounded text-xs font-medium whitespace-nowrap
+              bg-gray-800 text-white opacity-0 group-hover:opacity-100
+              transition-opacity pointer-events-none
+            `}>
+              {label}
+            </span>
+            <motion.div
+              className={`rounded-full transition-colors ${
+                currentSection === index
+                  ? 'bg-[#4C9755] w-3 h-3'
+                  : 'bg-gray-300 hover:bg-[#A9D098] w-2.5 h-2.5'
+              }`}
+              animate={currentSection === index ? { scale: [1, 1.3, 1] } : {}}
+              transition={{ duration: 0.4 }}
+            />
+          </button>
+        ))}
+      </nav>
+
+      {/* Sections slider */}
+      <motion.div
+        className="h-screen"
+        animate={{ y: `-${currentSection * 100}vh` }}
+        transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
+      >
+
       {/* Hero Section - Full screen blurred background */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Blurred background image */}
@@ -138,8 +218,9 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Stats Section */}
-      <section className="max-w-7xl mx-auto px-6 py-12">
+      {/* Stats + Features Section */}
+      <section className="h-screen flex flex-col justify-center py-12 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 w-full">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -166,10 +247,9 @@ export default function Home() {
             </motion.div>
           ))}
         </motion.div>
-      </section>
+        </div>
 
-      {/* Features Section */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="max-w-7xl mx-auto px-6 py-16 w-full">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -223,14 +303,15 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+      </div>
       </section>
 
       {/* Use Cases Section */}
-      <section className="bg-gradient-to-b from-[#A9D098]/10 via-[#4C9755]/10 to-white py-20 relative">
+      <section className="h-screen flex items-center bg-gradient-to-b from-[#A9D098]/10 via-[#4C9755]/10 to-white py-20 relative overflow-hidden">
         {/* Decorative background pattern */}
         <div className="absolute inset-0 opacity-5">
           <img
-            src="/faulttree.png"
+            src="/image.png"
             alt=""
             className="w-full h-full object-cover"
           />
@@ -252,7 +333,7 @@ export default function Home() {
               >
                 <div className="absolute -inset-4 bg-gradient-to-r from-[#A9D098]/20 to-[#4C9755]/20 rounded-3xl blur-2xl" />
                 <img
-                  src="/faulttree.png"
+                  src="/image.png"
                   alt="Network Diagram"
                   className="rounded-2xl shadow-2xl w-full h-auto relative ring-1 ring-gray-200/50"
                 />
@@ -269,19 +350,19 @@ export default function Home() {
               <div className="inline-block px-4 py-2 bg-gradient-to-r from-[#A9D098]/30 to-[#4C9755]/30 text-[#4C9755] rounded-full text-sm font-medium">
                 行业应用
               </div>
-              <h2 className="text-4xl font-bold">适用于多个行业</h2>
+              <h2 className="text-4xl font-bold">设备故障分析</h2>
               <p className="text-lg text-gray-600">
-                EET Fault Tree 深受各行业专业人士信赖，
-                用于关键的安全性和可靠性分析。
+                EET 故障树分析工具能够深入分析设备故障根因，
+                支持多类型设备的综合诊断和快速排查。
               </p>
               <ul className="space-y-4">
                 {[
-                  { name: '航空航天', icon: '✈️' },
-                  { name: '核电系统', icon: '⚡' },
-                  { name: '汽车制造', icon: '🚗' },
-                  { name: '化工处理', icon: '⚗️' },
-                  { name: '医疗设备', icon: '🏥' },
-                  { name: '软件系统', icon: '💻' },
+                  { name: '电力系统故障', icon: '🔌' },
+                  { name: '机械传动故障', icon: '⚙️' },
+                  { name: '液压系统故障', icon: '💧' },
+                  { name: '气动系统故障', icon: '💨' },
+                  { name: '电气控制故障', icon: '🔧' },
+                  { name: '通讯设备故障', icon: '📡' },
                 ].map((industry, index) => (
                   <motion.li
                     key={industry.name}
@@ -310,8 +391,102 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Core Docs Section */}
+      <section className="h-screen flex items-center bg-gradient-to-b from-white via-[#4C9755]/5 to-white overflow-hidden">
+        <div className="max-w-5xl mx-auto px-6 w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: "spring", stiffness: 200 }}
+              className="inline-block mb-4"
+            >
+              <div className="w-12 h-12 bg-gradient-to-r from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mx-auto">
+                <BookOpen className="h-6 w-6 text-white" />
+              </div>
+            </motion.div>
+            <h2 className="text-4xl font-bold mb-4">核心技术文档</h2>
+            <p className="text-xl text-gray-600">深入了解系统背后的关键算法与架构设计</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            {/* 知识图谱文档卡片 */}
+            <Link to="/docs/knowledge-graph" className="no-underline h-full block">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                whileHover={{ y: -8 }}
+                className="h-full"
+              >
+                <Card className="p-8 h-full border-2 hover:border-[#4C9755] hover:shadow-2xl transition-all relative overflow-hidden group cursor-pointer">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#A9D098]/10 to-[#4C9755]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#A9D098] to-[#4C9755] opacity-5 rounded-bl-full" />
+
+                  <div className="relative z-10">
+                    <div className="w-14 h-14 bg-gradient-to-br from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mb-5">
+                      <Network className="h-7 w-7 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3 group-hover:text-[#4C9755] transition-colors">
+                      知识图谱模块
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      基于 LightRAG 与 HippoRAG 的轻量化知识图谱方案，采用 Schema 定向抽取与 NetworkX 内存图，实现向量寻点 + BFS 多跳推理的两阶段检索策略，在资源受限环境下高效运行。
+                    </p>
+                    <div className="flex items-center gap-2 text-[#4C9755] font-medium text-sm">
+                      <span>阅读文档</span>
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+
+            {/* 上下文管理文档卡片 */}
+            <Link to="/docs/context-management" className="no-underline h-full block">
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="h-full"
+                whileHover={{ y: -8 }}
+              >
+                <Card className="p-8 h-full border-2 hover:border-[#4C9755] hover:shadow-2xl transition-all relative overflow-hidden group cursor-pointer">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#A9D098]/10 to-[#4C9755]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#A9D098] to-[#4C9755] opacity-5 rounded-bl-full" />
+
+                  <div className="relative z-10">
+                    <div className="w-14 h-14 bg-gradient-to-br from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mb-5">
+                      <Brain className="h-7 w-7 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3 group-hover:text-[#4C9755] transition-colors">
+                      上下文管理算法
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      融合 MMR 去重、Retrieval Head 重排、PathRAG 路径剪枝、Token 分级预算与 MemAgent 历史分层等多篇论文核心思想，实现检索后上下文的智能编排与压缩。
+                    </p>
+                    <div className="flex items-center gap-2 text-[#4C9755] font-medium text-sm">
+                      <span>阅读文档</span>
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials Section */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
+      <section className="h-screen flex items-center overflow-hidden"><div className="max-w-7xl mx-auto px-6 py-20 w-full">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -326,22 +501,22 @@ export default function Home() {
           {[
             {
               name: '唐宏健',
-              role: '全栈工程师',
-              company: '中国航空集团',
-              content: '这个工具大大提高了我们的故障树分析效率，界面直观，功能强大。',
+              role: '全栈工程师 - 架构师',
+              company: '',
+              content: '负责系统结构设计，核心功能开发和整体项目管理，设计了完备的promote算法与轻量化知识图谱构建方案，确保系统的高性能和可扩展性。',
               avatar: '👨‍💻',   
             },
             {
               name: '周博文',
               role: '后端工程师',
-              company: '华为技术有限公司',
-              content: '导出功能非常实用，可以轻松与团队分享分析结果，协作更加顺畅。',
+              company: '',
+              content: '负责后端开发，设计和实现核心业务逻辑，确保系统的高性能和可靠性。',
               avatar: '👩‍💼',
             },
             {
               name: '刘益铭',
               role: '前端工程师',
-              company: '中国石化',
+              company: '',
               content: '负责前端开发，使用React和Tailwind CSS构建了这个响应式界面，进行了大量的动画和交互设计，提升用户体验。',
               avatar: '👨‍💻',
             },
@@ -370,10 +545,11 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
-      </section>
+      </div></section>
 
-      {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-6 py-20">
+      {/* CTA + Footer Section */}
+      <section className="h-screen flex flex-col justify-center border-t bg-gradient-to-b from-white to-[#A9D098]/10 py-12 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 w-full mb-16">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -456,11 +632,10 @@ export default function Home() {
             </div>
           </div>
         </motion.div>
-      </section>
+      </div>
 
-      {/* Footer */}
-      <footer className="border-t bg-gradient-to-b from-white to-[#A9D098]/10 py-12">
-        <div className="max-w-7xl mx-auto px-6">
+        {/* Footer content */}
+        <div className="max-w-7xl mx-auto px-6 w-full">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -485,9 +660,9 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">资源</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">文档中心</span></li>
+                <li><Link to="/docs/knowledge-graph" className="hover:text-[#4C9755] transition-colors cursor-pointer">知识图谱文档</Link></li>
+                <li><Link to="/docs/context-management" className="hover:text-[#4C9755] transition-colors cursor-pointer">上下文管理算法</Link></li>
                 <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">教程视频</span></li>
-                <li><span className="hover:text-[#4C9755] transition-colors cursor-pointer">API 文档</span></li>
               </ul>
             </div>
             <div>
@@ -503,7 +678,8 @@ export default function Home() {
             <p>© 2026 EET Fault Tree. Built with React Flow & DeepSeek AI</p>
           </div>
         </div>
-      </footer>
+      </section>
+      </motion.div>
     </div>
   );
 }
