@@ -286,7 +286,7 @@ Context:
         <DocTable
           headers={['配置项', '默认值', '说明']}
           rows={[
-            ['max_context_tokens', '32000', '模型上下文窗口总量'],
+            ['max_context_tokens', '100000', '模型上下文窗口总量'],
             ['max_history_rounds', '10', '未分层时保留的最近对话轮数'],
             ['mmr_top_k', '15', 'MMR 输出上限'],
             ['mmr_relevance_weight', '0.7', 'MMR 中相关性权重 λ'],
@@ -299,7 +299,7 @@ Context:
           ]}
         />
         <DocParagraph>
-          <span className="text-sm text-gray-500">文档版本：v1.0 | 对应代码路径：Backend/Application/ContextManagement/</span>
+          <span className="text-sm text-gray-500">文档版本：v1.0 | 对应代码路径：Backend/Application/ContextManagement/ContextManagerTypes.py</span>
         </DocParagraph>
       </DocSection>
     </DocLayout>

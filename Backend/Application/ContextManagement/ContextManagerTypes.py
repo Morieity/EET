@@ -11,7 +11,7 @@ from Backend.Application.ContextManagement.ContextTypes import (
 class ContextManagerConfig:
     """Runtime knobs for context orchestration."""
 
-    max_context_tokens: int = 32000
+    max_context_tokens: int = 100000
     max_history_rounds: int = 10
     mmr_top_k: int = 15
     mmr_relevance_weight: float = 0.7
