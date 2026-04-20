@@ -615,7 +615,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t pt-8 text-center text-gray-600">
-            <p>© 2026 EET Fault Tree. Built with React Flow & DeepSeek AI</p>
+            <p>© 2026 EET Fault Tree. Built with 青色交流电灯</p>
           </div>
         </div>
       </footer>

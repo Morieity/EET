@@ -302,7 +302,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <RobotOutlined style={{ fontSize: 18, color: 'var(--fc-accent)' }} />
-          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--fc-text-primary)' }}>青色交流电灯</span>
+          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--fc-text-primary)' }}>EET Fault Tree</span>
         </div>
         {conversationId && (
           <Button type="text" size="small" icon={<PlusOutlined />} onClick={handleNewSession}>
