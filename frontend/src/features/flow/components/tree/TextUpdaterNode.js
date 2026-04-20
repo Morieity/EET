@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
 
-function TextUpdaterNode({ data, isConnectable, selected }) {
+function TextUpdaterNode({ id, data, isConnectable, selected }) {
   const sourceCount = data.sources?.length || 0;
 
   return (
@@ -23,9 +23,37 @@ function TextUpdaterNode({ data, isConnectable, selected }) {
         </div>
       )}
       <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
+      {data.hasChildren && (
+        <button
+          className="nodrag nopan"
+          onClick={(e) => { e.stopPropagation(); data.onToggleCollapse?.(id); }}
+          style={{
+            position: 'absolute',
+            right: -14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            border: '1.5px solid #aaa',
+            background: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            fontWeight: 'bold',
+            lineHeight: 1,
+            color: '#555',
+            zIndex: 10,
+            padding: 0,
+          }}
+        >
+          {data.collapsed ? '+' : '−'}
+        </button>
+      )}
     </div>
   );
 }
 
 export default TextUpdaterNode;
-
