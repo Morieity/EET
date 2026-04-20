@@ -96,9 +96,23 @@ class _NoopVectorStore(IVectorStoreRepository):
     def search(self, query: str, k: int = 5, score_threshold: float = 0.1) -> list[dict]:
         return []
 
-    # ChatUseCase 内部会调用该方法；接口当前未声明，但实现类实际具备。
+    def add_entity(self, name: str, entity_type: str, source_file: str = "") -> None:
+        return None
+
     def search_entities(self, query: str, top_k: int = 20, score_threshold: float = 0.85) -> list[dict]:
         return []
+
+    def delete_entities_by_file(self, file_name: str) -> None:
+        return None
+
+    def add_relation(self, head: str, relation: str, tail: str, source_file: str = "") -> None:
+        return None
+
+    def search_relations(self, query: str, top_k: int = 20, score_threshold: float = 0.5) -> list[dict]:
+        return []
+
+    def delete_relations_by_file(self, file_name: str) -> None:
+        return None
 
 
 class _DelayedToolLLM(ILLMService):

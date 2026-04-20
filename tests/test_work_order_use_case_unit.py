@@ -1,5 +1,6 @@
 import pytest
 
+from Backend.Application.Interfaces.IVectorStoreRepository import IVectorStoreRepository
 from Backend.Application.UseCases.ImportWorkOrderUseCase import ImportWorkOrderUseCase
 from Backend.Application.UseCases.WorkOrderUseCase import WorkOrderUseCase
 from Backend.Domain.Common.Enums.WorkOrderStatus import WorkOrderStatus
@@ -75,7 +76,7 @@ class _InMemoryWorkOrderRepository:
         }
 
 
-class _FakeVectorStore:
+class _FakeVectorStore(IVectorStoreRepository):
     def __init__(self) -> None:
         self.documents: list[tuple[str, list]] = []
         self.deleted_document_ids: list[str] = []
@@ -90,14 +91,23 @@ class _FakeVectorStore:
     def delete_by_file_name(self, file_name: str) -> None:
         self.deleted_document_ids.append(file_name)
 
+    def search(self, query: str, k: int = 5, score_threshold: float = 0.1) -> list[dict]:
+        return []
+
     def add_entity(self, name: str, entity_type: str, source_file: str = "") -> None:
         self.entities.append((name, entity_type, source_file))
+
+    def search_entities(self, query: str, top_k: int = 20, score_threshold: float = 0.85) -> list[dict]:
+        return []
+
+    def delete_entities_by_file(self, file_name: str) -> None:
+        self.deleted_entity_sources.append(file_name)
 
     def add_relation(self, head: str, relation: str, tail: str, source_file: str = "") -> None:
         self.relations.append((head, relation, tail, source_file))
 
-    def delete_entities_by_file(self, file_name: str) -> None:
-        self.deleted_entity_sources.append(file_name)
+    def search_relations(self, query: str, top_k: int = 20, score_threshold: float = 0.5) -> list[dict]:
+        return []
 
     def delete_relations_by_file(self, file_name: str) -> None:
         self.deleted_relation_sources.append(file_name)

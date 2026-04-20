@@ -303,23 +303,18 @@ class ExpertLearningUseCase:
         )
 
     def _upsert_graph_vectors(self, triples: list, source_file: str) -> None:
-        add_entity = getattr(self._vector_store, "add_entity", None)
-        add_relation = getattr(self._vector_store, "add_relation", None)
-        if not callable(add_entity) or not callable(add_relation):
-            return
-
         try:
             seen_entities = set()
             for triple in triples:
                 if triple.head and triple.head not in seen_entities:
-                    add_entity(triple.head, triple.head_type, source_file=source_file)
+                    self._vector_store.add_entity(triple.head, triple.head_type, source_file=source_file)
                     seen_entities.add(triple.head)
                 if triple.tail and triple.tail not in seen_entities:
-                    add_entity(triple.tail, triple.tail_type, source_file=source_file)
+                    self._vector_store.add_entity(triple.tail, triple.tail_type, source_file=source_file)
                     seen_entities.add(triple.tail)
 
                 if triple.head and triple.relation and triple.tail:
-                    add_relation(
+                    self._vector_store.add_relation(
                         triple.head,
                         triple.relation,
                         triple.tail,

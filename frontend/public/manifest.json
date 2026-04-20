@@ -1,6 +1,6 @@
 {
-  "short_name": "青色交流电灯",
-  "name": "青色交流电灯，一个基于 React Flow 的AI故障树编辑器",
+  "short_name": "EET Fault Tree",
+  "name": "EET Fault Tree，一个基于 React Flow 的AI故障树编辑器",
   "icons": [
     {
       "src": "favicon.ico",

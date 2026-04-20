@@ -81,10 +81,8 @@ class WorkOrderUseCase:
         self._vector_store.delete_by_file_name(existing.id)
         graph_source = self.graph_source(existing.id)
         # 图谱实体和关系使用独立 source 标识，避免误删普通文档数据。
-        if hasattr(self._vector_store, "delete_entities_by_file"):
-            self._vector_store.delete_entities_by_file(graph_source)
-        if hasattr(self._vector_store, "delete_relations_by_file"):
-            self._vector_store.delete_relations_by_file(graph_source)
+        self._vector_store.delete_entities_by_file(graph_source)
+        self._vector_store.delete_relations_by_file(graph_source)
         if self._graph_repo is not None:
             self._graph_repo.remove_by_file(graph_source)
 

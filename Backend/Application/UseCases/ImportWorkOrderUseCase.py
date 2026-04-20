@@ -131,10 +131,8 @@ class ImportWorkOrderUseCase:
         graph_source = WorkOrderUseCase.graph_source(work_order.id)
         try:
             # 第二阶段前先清理旧的图谱关联，避免更新工单后产生重复边。
-            if hasattr(self._vector_store, "delete_entities_by_file"):
-                self._vector_store.delete_entities_by_file(graph_source)
-            if hasattr(self._vector_store, "delete_relations_by_file"):
-                self._vector_store.delete_relations_by_file(graph_source)
+            self._vector_store.delete_entities_by_file(graph_source)
+            self._vector_store.delete_relations_by_file(graph_source)
             self._graph_repo.remove_by_file(graph_source)
 
             triples = self._build_structured_triples(work_order)

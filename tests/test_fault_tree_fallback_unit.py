@@ -77,9 +77,23 @@ class _VectorStoreNoop(IVectorStoreRepository):
     def search(self, query: str, k: int = 5, score_threshold: float = 0.1) -> list[dict]:
         return []
 
-    # ChatUseCase 会尝试调用；接口里未定义，补一个 noop 供测试使用。
-    def search_entities(self, query: str, top_k: int = 20, score_threshold: float = 0.4) -> list[dict]:
+    def add_entity(self, name: str, entity_type: str, source_file: str = "") -> None:
+        return None
+
+    def search_entities(self, query: str, top_k: int = 20, score_threshold: float = 0.85) -> list[dict]:
         return []
+
+    def delete_entities_by_file(self, file_name: str) -> None:
+        return None
+
+    def add_relation(self, head: str, relation: str, tail: str, source_file: str = "") -> None:
+        return None
+
+    def search_relations(self, query: str, top_k: int = 20, score_threshold: float = 0.5) -> list[dict]:
+        return []
+
+    def delete_relations_by_file(self, file_name: str) -> None:
+        return None
 
 
 class _FailingStreamLLM(ILLMService):
