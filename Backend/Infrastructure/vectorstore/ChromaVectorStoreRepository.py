@@ -81,6 +81,74 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
             )
         return filtered
 
+    def search_by_sources(
+        self, source_keys: list[dict], query: str, k: int = 15
+    ) -> list[dict]:
+        """根据图谱提供的 source_file + chunk_index 精准检索切片。"""
+        if not source_keys:
+            return []
+
+        store = self._get_store()
+        collection = store._collection
+
+        # 构建 ChromaDB where 过滤条件
+        file_names = list({sk["file_name"] for sk in source_keys if sk.get("file_name")})
+        chunk_indices = list({sk["chunk_index"] for sk in source_keys if sk.get("chunk_index")})
+
+        if not file_names:
+            return []
+
+        # 构建过滤条件
+        where_filter: dict
+        if chunk_indices:
+            where_filter = {
+                "$and": [
+                    {"file_name": {"$in": file_names}},
+                    {"chunk_index": {"$in": chunk_indices}},
+                ]
+            }
+        else:
+            where_filter = {"file_name": {"$in": file_names}}
+
+        try:
+            query_embedding = self._embedding.embed_query(query)
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=k,
+                where=where_filter,
+                include=["metadatas", "documents", "distances"],
+            )
+        except Exception:
+            logger.debug("search_by_sources with chunk_index failed, falling back to file_name only")
+            try:
+                where_filter = {"file_name": {"$in": file_names}}
+                query_embedding = self._embedding.embed_query(query)
+                results = collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=k,
+                    where=where_filter,
+                    include=["metadatas", "documents", "distances"],
+                )
+            except Exception:
+                logger.debug("search_by_sources fallback also failed")
+                return []
+
+        if not results["documents"] or not results["documents"][0]:
+            return []
+
+        filtered: list[dict] = []
+        for doc_text, meta, dist in zip(
+            results["documents"][0], results["metadatas"][0], results["distances"][0]
+        ):
+            score = 1.0 / (1.0 + dist)
+            filtered.append({
+                "file_name": meta.get("file_name", "Unknown"),
+                "page_content": doc_text,
+                "score": score,
+                "type": meta.get("type", "document"),
+            })
+        return filtered
+
     # ── graph_entities 方法 ─────────────────────────
 
     def add_entity(self, name: str, entity_type: str, source_file: str = "") -> None:

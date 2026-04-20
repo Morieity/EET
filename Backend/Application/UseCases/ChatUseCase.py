@@ -114,8 +114,8 @@ class ChatUseCase:
             "name": conversation.name,
         }
 
-        # 2. 四步 GraphRAG 检索
-        # ① 向量寻点：从 entity collection 找种子实体
+        # 2. 五步 GraphRAG 检索（图谱引导模式）
+        # ① 向量寻点（增强版）：同时搜索 entity + relation 集合
         graph_paths: list[dict] = []
         seed_names: list[str] = []
         try:
@@ -124,19 +124,64 @@ class ChatUseCase:
         except Exception:
             logger.debug("Entity search skipped or failed")
 
-        # ② 图谱发散：从种子实体扩展子图
+        try:
+            relation_results = self._vector_store.search_relations(query=question)
+            for rel in relation_results:
+                head = rel.get("head", "")
+                tail = rel.get("tail", "")
+                if head and head not in seed_names:
+                    seed_names.append(head)
+                if tail and tail not in seed_names:
+                    seed_names.append(tail)
+        except Exception:
+            logger.debug("Relation search skipped or failed")
+
+        # ② 图谱扩展：BFS 从种子扩展 2 跳子图
         if seed_names and self._graph_repo:
             try:
                 graph_paths = self._graph_repo.expand_subgraph(seed_names, hops=2)
             except Exception:
                 logger.debug("Subgraph expansion failed, falling back to vector-only")
 
-        # ③ 原文片段检索（始终执行）
-        try:
-            sources = self._vector_store.search(query=question, k=15, score_threshold=0.1)
-        except Exception:
-            logger.exception("Vector store search failed")
-            sources = []
+        # ③ 图谱引导的切片检索：用图谱路径中的来源信息精准定位切片
+        sources: list[dict] = []
+        if graph_paths:
+            source_keys: list[dict] = []
+            seen_keys: set[tuple] = set()
+            for path in graph_paths:
+                sf = path.get("source_file", "")
+                sc = path.get("source_chunk_id", "")
+                if sf:
+                    key = (sf, sc)
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        source_keys.append({"file_name": sf, "chunk_index": sc})
+            if source_keys:
+                try:
+                    sources = self._vector_store.search_by_sources(
+                        source_keys=source_keys, query=question, k=15
+                    )
+                except Exception:
+                    logger.debug("Graph-guided chunk retrieval failed")
+
+        # ④ 向量补充检索（兜底）：图谱引导结果不足时补充
+        GRAPH_MIN_SOURCES = 5
+        if len(sources) < GRAPH_MIN_SOURCES:
+            try:
+                fallback_k = 15 - len(sources)
+                fallback_sources = self._vector_store.search(
+                    query=question, k=fallback_k, score_threshold=0.1
+                )
+                # 去重合并
+                existing_contents = {
+                    (s["file_name"], s["page_content"]) for s in sources
+                }
+                for fs in fallback_sources:
+                    if (fs["file_name"], fs["page_content"]) not in existing_contents:
+                        sources.append(fs)
+                        existing_contents.add((fs["file_name"], fs["page_content"]))
+            except Exception:
+                logger.exception("Vector store fallback search failed")
 
         # 注入已有故障树上下文（支持多轮修改同一棵树）
         existing_tree_context = self._fault_tree_skill.get_existing_tree_context(

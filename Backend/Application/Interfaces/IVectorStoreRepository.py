@@ -21,6 +21,16 @@ class IVectorStoreRepository(ABC):
         """检索与 query 相关的文档片段，返回 [{file_name, page_content, score}]。"""
         pass
 
+    @abstractmethod
+    def search_by_sources(
+        self, source_keys: list[dict], query: str, k: int = 15
+    ) -> list[dict]:
+        """根据 source_file + chunk_index 精确检索切片，并用 query 做相关度排序。
+        source_keys: [{"file_name": str, "chunk_index": str}, ...]
+        返回: [{file_name, page_content, score, type}]
+        """
+        pass
+
     # ── 实体操作 ──────────────────────────────────────
 
     @abstractmethod

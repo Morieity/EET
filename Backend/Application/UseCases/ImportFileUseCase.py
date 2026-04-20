@@ -54,6 +54,9 @@ class ImportFileUseCase:
         try:
             file_path = self._file_storage.get_file_path(file_entity.file_name)
             documents = self._doc_processor.load_and_split(file_path, file_entity.file_type)
+            # 为每个切片添加 chunk_index，供图谱引导检索时精准定位
+            for idx, doc in enumerate(documents):
+                doc.metadata["chunk_index"] = str(idx)
             self._vector_store.add_documents(file_entity.file_name, documents)
             self._file_repo.update_status(file_entity.id, FileStatus.EMBEDDED)
             logger.info("File embedded successfully: %s", file_entity.file_name)

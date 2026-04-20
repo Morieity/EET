@@ -18,6 +18,7 @@ GraphPath = TypedDict(
         "score": float,
         "confidence": float,
         "source_file": str,
+        "source_chunk_id": str,
     },
     total=False,
 )

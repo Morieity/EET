@@ -35,6 +35,7 @@ class NetworkXGraphRepository(IGraphRepository):
                         edge["src"], edge["dst"],
                         relation=edge["relation"],
                         source_file=edge.get("source_file", ""),
+                        source_chunk_id=edge.get("source_chunk_id", ""),
                     )
             logger.info(
                 "图加载完成: %d 节点, %d 边",
@@ -55,6 +56,7 @@ class NetworkXGraphRepository(IGraphRepository):
                         "src": u, "dst": v,
                         "relation": self._G[u][v].get("relation", ""),
                         "source_file": self._G[u][v].get("source_file", ""),
+                        "source_chunk_id": self._G[u][v].get("source_chunk_id", ""),
                     }
                     for u, v in self._G.edges
                 ],
@@ -73,6 +75,7 @@ class NetworkXGraphRepository(IGraphRepository):
                     t.head, t.tail,
                     relation=t.relation,
                     source_file=t.source_file,
+                    source_chunk_id=t.source_chunk_id,
                 )
 
     def remove_by_file(self, file_name: str) -> None:
@@ -108,10 +111,14 @@ class NetworkXGraphRepository(IGraphRepository):
                                 or self._G.get_edge_data(neighbor, node)
                             )
                             relation = edge_data.get("relation", "关联") if edge_data else "关联"
+                            source_file = edge_data.get("source_file", "") if edge_data else ""
+                            source_chunk_id = edge_data.get("source_chunk_id", "") if edge_data else ""
                             paths.append({
                                 "from": node,
                                 "relation": relation,
                                 "to": neighbor,
+                                "source_file": source_file,
+                                "source_chunk_id": source_chunk_id,
                             })
                             visited.add(neighbor)
                             next_frontier.add(neighbor)
