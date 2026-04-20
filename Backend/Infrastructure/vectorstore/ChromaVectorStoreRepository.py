@@ -53,18 +53,33 @@ class ChromaVectorStoreRepository(IVectorStoreRepository):
         if results["ids"]:
             collection.delete(ids=results["ids"])
 
+    # 对话历史 chunk 的最低相似度阈值（仅 >= 此值才纳入检索结果）
+    CONVERSATION_SCORE_THRESHOLD = 0.7
+
     def search(self, query: str, k: int = 5, score_threshold: float = 0.1) -> list[dict]:
         store = self._get_store()
         results = store.similarity_search_with_relevance_scores(query, k=k)
-        return [
-            {
-                "file_name": doc.metadata.get("file_name", "Unknown"),
-                "page_content": doc.page_content,
-                "score": score,
-            }
-            for doc, score in results
-            if score >= score_threshold
-        ]
+        filtered: list[dict] = []
+        for doc, score in results:
+            if score < score_threshold:
+                continue
+            doc_type = doc.metadata.get("type", "")
+            is_conversation = (
+                doc_type == "conversation_history"
+                or doc.metadata.get("file_name", "").startswith("conversation_")
+            )
+            # 对话历史要求更高的相似度才纳入，以文档为主
+            if is_conversation and score < self.CONVERSATION_SCORE_THRESHOLD:
+                continue
+            filtered.append(
+                {
+                    "file_name": doc.metadata.get("file_name", "Unknown"),
+                    "page_content": doc.page_content,
+                    "score": score,
+                    "type": doc_type or ("conversation_history" if is_conversation else "document"),
+                }
+            )
+        return filtered
 
     # ── graph_entities 方法 ─────────────────────────
 

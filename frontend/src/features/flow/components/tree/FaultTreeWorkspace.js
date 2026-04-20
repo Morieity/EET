@@ -23,21 +23,46 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
   const flowWrapperRef = useRef(null);
+  const onLayoutRef = useRef(null);
 
   const { screenToFlowPosition, toObject, setViewport, fitView } = useReactFlow();
+
+  const applyLayout = useCallback((nextNodes, nextEdges, direction = 'LR') => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nextNodes, nextEdges, direction);
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+    window.requestAnimationFrame(() => {
+      fitView({ padding: 0.2 });
+    });
+  }, [fitView]);
+
+  const onLayout = useCallback((direction) => {
+    applyLayout(nodes, edges, direction);
+  }, [applyLayout, nodes, edges]);
+
+  onLayoutRef.current = onLayout;
 
   useEffect(() => {
     if (!tree) return;
     const { nodes: ftNodes, edges: ftEdges } = convertFaultTreeToFlow(tree);
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(ftNodes, ftEdges, 'LR');
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
+    applyLayout(ftNodes, ftEdges, 'LR');
     setFaultTreeId(tree.id || null);
     setFaultTreeName(tree.name || '未命名故障树');
-    window.requestAnimationFrame(() => {
-      fitView({ padding: 0.2 });
+
+    let frameId = null;
+    let secondFrameId = null;
+
+    frameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
+        onLayoutRef.current?.('LR');
+      });
     });
-  }, [tree, fitView]);
+
+    return () => {
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+      if (secondFrameId != null) window.cancelAnimationFrame(secondFrameId);
+    };
+  }, [tree, applyLayout]);
 
   const selectedNode = useMemo(() => nodes.find((n) => n.selected), [nodes]);
 
@@ -53,15 +78,6 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
     (params) => setEdges((snapshot) => addEdge({ ...params, type: 'smoothstep' }, snapshot)),
     [],
   );
-
-  const onLayout = useCallback((direction) => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, direction);
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
-    window.requestAnimationFrame(() => {
-      fitView({ padding: 0.2 });
-    });
-  }, [nodes, edges, fitView]);
 
   const onTriggerImport = useCallback(() => {
     fileInputRef.current?.click();
@@ -133,6 +149,7 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
           node_type: 'event',
           label: n.data?.label || '',
           remark: n.data?.remark || '',
+          sources: n.data?.sources || [],
         };
       });
 

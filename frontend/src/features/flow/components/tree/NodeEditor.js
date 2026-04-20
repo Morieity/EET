@@ -1,6 +1,7 @@
-import { Button, Tooltip, Input, ColorPicker, Segmented, Typography } from 'antd';
+import { Button, Tooltip, Input, ColorPicker, Segmented, Typography, Collapse, Tag } from 'antd';
 import { NodeIndexOutlined, DeleteOutlined } from '@ant-design/icons';
 import { gateButtons } from '../../utils/constants';
+import { openUploadsFolder } from '../../services/fileApi';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -129,6 +130,42 @@ export default function NodeEditor({ selectedNode, setNodes, variant, setVariant
               }}
             />
           </div>
+
+          {selectedNode.type === 'textUpdater' && selectedNode.data?.sources?.length > 0 && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>
+                引用来源 ({selectedNode.data.sources.length})
+              </Text>
+              <Collapse
+                size="small"
+                items={selectedNode.data.sources.map((src, i) => ({
+                  key: i,
+                  label: (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{ fontSize: 12, color: '#1890ff', cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); openUploadsFolder().catch(() => {}); }}
+                        title="打开文件所在文件夹"
+                      >📄 {src.file_name}</span>
+                      {src.score != null && (
+                        <Tag color="blue" style={{ fontSize: 10, marginLeft: 4 }}>
+                          {(src.score * 100).toFixed(0)}%
+                        </Tag>
+                      )}
+                    </div>
+                  ),
+                  children: (
+                    <Text
+                      type="secondary"
+                      style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}
+                    >
+                      {src.page_content}
+                    </Text>
+                  ),
+                }))}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

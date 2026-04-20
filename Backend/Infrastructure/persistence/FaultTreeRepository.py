@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from Backend.Domain.Entities.fault_tree import FaultTree, FaultTreeNode, FaultTreeEdge
@@ -93,10 +94,11 @@ class SQLiteFaultTreeRepository(IFaultTreeRepository):
     def _insert_nodes(conn, tree_id: str, nodes: list[FaultTreeNode]) -> None:
         for n in nodes:
             conn.execute(
-                "INSERT INTO fault_tree_nodes (id, tree_id, label, node_type, gate_type, remark) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO fault_tree_nodes (id, tree_id, label, node_type, gate_type, remark, sources) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (n.id, tree_id, n.label, n.node_type.value,
-                 n.gate_type.value if n.gate_type else None, n.remark),
+                 n.gate_type.value if n.gate_type else None, n.remark,
+                 json.dumps(n.sources, ensure_ascii=False)),
             )
 
     @staticmethod
@@ -113,7 +115,7 @@ class SQLiteFaultTreeRepository(IFaultTreeRepository):
         tree_id = row["id"]
 
         node_rows = conn.execute(
-            "SELECT id, label, node_type, gate_type, remark FROM fault_tree_nodes WHERE tree_id = ?",
+            "SELECT id, label, node_type, gate_type, remark, sources FROM fault_tree_nodes WHERE tree_id = ?",
             (tree_id,),
         ).fetchall()
         nodes = [
@@ -123,6 +125,7 @@ class SQLiteFaultTreeRepository(IFaultTreeRepository):
                 node_type=NodeType(nr["node_type"]),
                 gate_type=GateType(nr["gate_type"]) if nr["gate_type"] else None,
                 remark=nr["remark"] or "",
+                sources=json.loads(nr["sources"] or "[]"),
             )
             for nr in node_rows
         ]

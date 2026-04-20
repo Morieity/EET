@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS fault_tree_nodes (
     node_type TEXT NOT NULL,
     gate_type TEXT,
     remark TEXT DEFAULT '',
+    sources TEXT DEFAULT '[]',
     PRIMARY KEY (id, tree_id),
     FOREIGN KEY (tree_id) REFERENCES fault_trees(id)
 );

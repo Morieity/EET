@@ -6,7 +6,7 @@ export const INTENT_CONFIG = {
   fault_tree_generated: { label: '✅ 已生成故障树', color: '#8e44ad' },
 };
 
-export const DEFAULT_WELCOME_MESSAGE = '你好！我是设备故障诊断助手。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。';
+export const DEFAULT_WELCOME_MESSAGE = '你好！我是设备故障诊断助手青色交流电灯。请描述您遇到的设备故障现象，我会帮您逐步分析定位问题。';
 export const DEFAULT_NEW_SESSION_MESSAGE = '新会话已创建。请描述您遇到的设备故障现象，我会帮您分析定位问题。';
 export const PERSISTED_TREE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

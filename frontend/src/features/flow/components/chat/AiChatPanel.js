@@ -7,6 +7,7 @@ import FaultTreeCard from '../tree/FaultTreeCard';
 import FaultTreeWorkspace from '../tree/FaultTreeWorkspace';
 import { extractFaultTreeFromText } from '../../utils/faultTreeParser';
 import { getFaultTree } from '../../services/faultTreeApi';
+import { openUploadsFolder } from '../../services/fileApi';
 import { INTENT_CONFIG, DEFAULT_WELCOME_MESSAGE, PERSISTED_TREE_ID_PATTERN, createAssistantMessage } from '../../utils/constants';
 import useChatStream from '../../hooks/useChatStream';
 import useConversationLoader from '../../hooks/useConversationLoader';
@@ -48,18 +49,43 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
       <Collapse
         ghost
         size="small"
+        defaultActiveKey={[]}
         items={[{
-          key: `src-${index}`,
-          label: <span style={{ fontSize: 12, color: '#40b586' }}>查看知识来源 ({msg.sources.length})</span>,
+          key: `sources-group-${index}`,
+          label: (
+            <span style={{ fontSize: 12, color: '#999' }}>
+              📎 引用来源（{msg.sources.length} 个文件）
+            </span>
+          ),
           children: (
-            <div style={{ maxHeight: 120, overflowY: 'auto' }}>
-              {msg.sources.map((src, i) => (
-                <div key={i} style={{ marginBottom: 6, paddingBottom: 4, borderBottom: i < msg.sources.length - 1 ? '1px dashed #eee' : 'none', fontSize: 12, color: '#888' }}>
-                  <div style={{ fontWeight: 600, color: '#666' }}>📄 {src.file_name}</div>
-                  <div>{src.page_content.length > 150 ? src.page_content.slice(0, 150) + '...' : src.page_content}</div>
-                </div>
-              ))}
-            </div>
+            <Collapse
+              ghost
+              size="small"
+              items={msg.sources.map((src, i) => ({
+                key: `src-${index}-${i}`,
+                label: (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <span
+                      style={{ color: '#1890ff', cursor: 'pointer', fontWeight: 600 }}
+                      onClick={(e) => { e.stopPropagation(); openUploadsFolder().catch(() => {}); }}
+                      title="打开文件所在文件夹"
+                    >
+                      📄 {src.file_name}
+                    </span>
+                    {src.score != null && (
+                      <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>
+                        {(src.score * 100).toFixed(0)}%
+                      </Tag>
+                    )}
+                  </div>
+                ),
+                children: (
+                  <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>
+                    {src.page_content}
+                  </div>
+                ),
+              }))}
+            />
           ),
         }]}
         style={{ marginTop: 4 }}

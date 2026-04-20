@@ -145,6 +145,7 @@ export const convertFaultTreeToFlow = (faultTree) => {
       data: {
         label: n.label || n.id,
         remark: n.remark || '',
+        sources: n.sources || [],
       },
       style: {
         backgroundColor: isRoot ? '#e74c3c' : '#40b586',
