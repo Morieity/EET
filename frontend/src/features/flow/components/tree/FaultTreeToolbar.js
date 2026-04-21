@@ -17,7 +17,7 @@ export default function FaultTreeToolbar({
           <Tooltip title="返回对话">
             <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回</Button>
           </Tooltip>
-          <ApartmentOutlined style={{ color: 'var(--fc-accent)', fontSize: 18 }} />
+          {/* <ApartmentOutlined style={{ color: 'var(--fc-accent)', fontSize: 18 }} /> */}
           <Text strong style={{ fontSize: 15, color: 'var(--fc-text-primary)' }}>故障树查看与编辑</Text>
         </div>
         <Input

@@ -510,7 +510,7 @@ export default function Home() {
               name: '周博文',
               role: '后端工程师',
               company: '',
-              content: '负责后端开发，设计和实现核心业务逻辑，确保系统的高性能和可靠性。',
+              content: '负责统筹进度和后端辅助开发，定期对系统进行测试，确保系统的高性能和可靠性。',
               avatar: '👩‍💼',
             },
             {

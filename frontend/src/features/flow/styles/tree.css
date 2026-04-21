@@ -46,6 +46,26 @@
   padding: 12px;
   overflow-y: auto;
   flex-shrink: 0;
+  transition: width 0.25s cubic-bezier(0.4,0,0.2,1), min-width 0.25s cubic-bezier(0.4,0,0.2,1), padding 0.25s;
+}
+
+.fc-tree-sidepanel--collapsed {
+  width: 36px;
+  min-width: 36px;
+  padding: 12px 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.fc-tree-sidepanel-toggle-btn {
+  color: var(--fc-text-muted);
+  border-radius: 6px;
+}
+.fc-tree-sidepanel-toggle-btn:hover {
+  background: var(--fc-sidebar-hover-bg) !important;
+  color: var(--fc-accent) !important;
 }
 
 .fc-tree-empty-editor {
@@ -80,5 +100,13 @@
     max-height: 280px;
     border-right: none;
     border-bottom: 1px solid var(--fc-main-border);
+  }
+
+  .fc-tree-sidepanel--collapsed {
+    width: 100%;
+    min-width: unset;
+    max-height: 36px;
+    padding: 4px 12px;
+    flex-direction: row;
   }
 }

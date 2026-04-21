@@ -1,14 +1,45 @@
 import { Button, Tooltip, Input, ColorPicker, Segmented, Typography, Collapse, Tag } from 'antd';
-import { NodeIndexOutlined, DeleteOutlined } from '@ant-design/icons';
+import { NodeIndexOutlined, DeleteOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { gateButtons } from '../../utils/constants';
 import { openUploadsFolder } from '../../services/fileApi';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
-export default function NodeEditor({ selectedNode, setNodes, variant, setVariant, onDeleteSelectedNode, onAddGate }) {
+export default function NodeEditor({ selectedNode, setNodes, variant, setVariant, onDeleteSelectedNode, onAddGate, collapsed, onToggleCollapse }) {
+  if (collapsed) {
+    return (
+      <div className="fc-tree-sidepanel fc-tree-sidepanel--collapsed">
+        <Tooltip title="展开面板" placement="right">
+          <Button
+            type="text"
+            size="small"
+            icon={<RightOutlined />}
+            onClick={onToggleCollapse}
+            className="fc-tree-sidepanel-toggle-btn"
+          />
+        </Tooltip>
+      </div>
+    );
+  }
+
   return (
     <div className="fc-tree-sidepanel">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Text strong style={{ fontSize: 13, color: 'var(--fc-sidebar-text)' }}>故障树编辑画布</Text>
+        </div>
+        <Tooltip title="折叠面板">
+          <Button
+            type="text"
+            size="small"
+            icon={<LeftOutlined />}
+            onClick={onToggleCollapse}
+            className="fc-tree-sidepanel-toggle-btn"
+          />
+        </Tooltip>
+      </div>
+
       <div style={{ marginBottom: 12 }}>
         <Text type="secondary" style={{ fontSize: 11, marginBottom: 6, display: 'block' }}>画布背景</Text>
         <Segmented

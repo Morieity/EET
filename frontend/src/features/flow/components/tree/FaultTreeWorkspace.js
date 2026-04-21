@@ -18,6 +18,7 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
   const edgesRef = useRef(edges);
   edgesRef.current = edges;
   const [variant, setVariant] = useState('cross');
+  const [sidepanelCollapsed, setSidepanelCollapsed] = useState(false);
   const [faultTreeId, setFaultTreeId] = useState(null);
   const [faultTreeName, setFaultTreeName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -291,6 +292,8 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
           setVariant={setVariant}
           onDeleteSelectedNode={onDeleteSelectedNode}
           onAddGate={onAddGate}
+          collapsed={sidepanelCollapsed}
+          onToggleCollapse={() => setSidepanelCollapsed(v => !v)}
         />
 
         <div className="fc-tree-canvas" ref={flowWrapperRef}>

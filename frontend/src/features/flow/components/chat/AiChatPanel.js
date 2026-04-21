@@ -301,7 +301,7 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
         background: 'var(--fc-main-bg)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <RobotOutlined style={{ fontSize: 18, color: 'var(--fc-accent)' }} />
+          <img src="/favicon.svg" alt="logo" style={{ width: 20, height: 20 }} />
           <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--fc-text-primary)' }}>EET Fault Tree</span>
         </div>
         {conversationId && (
