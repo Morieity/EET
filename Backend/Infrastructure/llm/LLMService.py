@@ -79,7 +79,8 @@ class LLMService(ILLMService):
 
     def chat_with_tools(self, messages: list[dict], tools: list[dict]) -> dict:
         lc_messages = self._to_lc_messages(messages)
-        llm_with_tools = self._llm.bind_tools(tools)
+        # Force the model to return a tool call for deterministic fault-tree flow.
+        llm_with_tools = self._llm.bind_tools(tools, tool_choice="required")
         response = llm_with_tools.invoke(lc_messages)
 
         if response.tool_calls:

@@ -318,28 +318,33 @@ class ChatUseCase:
                 finally:
                     async_done.set()
 
-            if is_direct_fault_tree:
-                # ── 精确匹配：直接生成，不做 LLM 分析 ──
-                thread = threading.Thread(target=_generate_fault_tree_async, daemon=True)
-                thread.start()
-                yield {"type": "token", "content": "正在生成故障树，请稍候..."}
-                full_answer = "正在生成故障树，请稍候..."
-                async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
+            # ── 统一流程：LLM 自然语言分析 + 后台 function calling 并行 ──
+            # 不论精确匹配还是宽泛匹配，都保证回复同时包含「文字说明 + 故障树」。
+            thread = threading.Thread(target=_generate_fault_tree_async, daemon=True)
+            thread.start()
 
-                if fault_tree_container[0] is not None:
-                    fault_tree_id = fault_tree_container[0].id
-                    yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
-                else:
-                    err_msg = "\n\n故障树生成失败，请重试。"
-                    full_answer += err_msg
-                    yield {"type": "token", "content": err_msg}
+            if update_match:
+                stream_task_desc = (
+                    "用户要求修改已有故障树，故障树将自动更新并附加在回复末尾。\n"
+                    "你的任务是用自然语言说明本次修改的思路，请遵循以下要求：\n"
+                    "1. 简要说明本次修改的目标与改动点（哪些节点/连接被增删改）。\n"
+                    "2. 如果上下文文档中有相关信息，引用关键内容辅助说明。\n"
+                    "3. 严禁输出 JSON、代码块或任何故障树数据结构。\n"
+                    "4. 不必逐一罗列节点和连接，故障树图会自动展示。\n"
+                    "5. 如果信息不够充分，在末尾提出补充问题引导用户。"
+                )
+            elif is_direct_fault_tree:
+                stream_task_desc = (
+                    "用户要求生成故障树，故障树将自动生成并附加在回复末尾。\n"
+                    "你的任务是用自然语言进行故障分析说明，请遵循以下要求：\n"
+                    "1. 简要分析故障场景、可能的故障原因及其逻辑关系。\n"
+                    "2. 如果上下文文档中有相关信息，引用关键内容辅助分析。\n"
+                    "3. 严禁输出 JSON、代码块或任何故障树数据结构。\n"
+                    "4. 不必描述节点和连接的具体结构，故障树图会自动展示。\n"
+                    "5. 如果信息不够充分，在末尾提出补充问题引导用户。"
+                )
             else:
-                # ── 宽泛匹配：LLM 分析 + 后台生成并行 ──
-                thread = threading.Thread(target=_generate_fault_tree_async, daemon=True)
-                thread.start()
-
-                stream_system = (
-                    f"{system_content}\n\n"
+                stream_task_desc = (
                     "用户提到了故障树相关内容，故障树将自动生成并附加在回复末尾。\n"
                     "你的任务是用自然语言进行分析说明，请遵循以下要求：\n"
                     "1. 简要分析故障场景、可能的故障原因及其逻辑关系。\n"
@@ -348,31 +353,36 @@ class ChatUseCase:
                     "4. 不必描述节点和连接的具体结构，故障树图会自动展示。\n"
                     "5. 如果信息不够充分，在末尾提出补充问题引导用户。"
                 )
-                stream_messages = messages.copy()
-                stream_messages[0] = {"role": "system", "content": stream_system}
 
-                try:
-                    for token in self._llm.stream_chat(stream_messages):
-                        full_answer += token
-                        yield {"type": "token", "content": token}
-                except Exception:
-                    logger.exception("LLM stream failed during fault tree request")
-                    async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
-                    if fault_tree_container[0] is not None:
-                        fault_tree_id = fault_tree_container[0].id
-                        yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
-                    _persist_round()
-                    yield {"type": "error", "message": "LLM service error"}
-                    return
+            stream_system = f"{system_content}\n\n{stream_task_desc}"
+            stream_messages = messages.copy()
+            stream_messages[0] = {"role": "system", "content": stream_system}
 
-                # 等待故障树后台线程完成
+            try:
+                for token in self._llm.stream_chat(stream_messages):
+                    full_answer += token
+                    yield {"type": "token", "content": token}
+            except Exception:
+                logger.exception("LLM stream failed during fault tree request")
                 async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
-
                 if fault_tree_container[0] is not None:
                     fault_tree_id = fault_tree_container[0].id
                     yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
-                else:
-                    logger.warning("Async fault tree generation produced no result for: %s", question)
+                _persist_round()
+                yield {"type": "error", "message": "LLM service error"}
+                return
+
+            # 等待故障树后台线程完成
+            async_done.wait(timeout=self._fault_tree_wait_timeout_seconds)
+
+            if fault_tree_container[0] is not None:
+                fault_tree_id = fault_tree_container[0].id
+                yield {"type": "fault_tree", "fault_tree": fault_tree_container[0].to_dict()}
+            else:
+                err_msg = "\n\n（故障树生成失败，请重试。）"
+                full_answer += err_msg
+                yield {"type": "token", "content": err_msg}
+                logger.warning("Async fault tree generation produced no result for: %s", question)
 
         else:
             # 普通对话：直接流式调用 LLM（无 tool calling）
