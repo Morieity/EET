@@ -5,13 +5,20 @@ import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { motion } from 'motion/react';
 
-const SECTION_LABELS = ['首页', '功能', '应用', '文档', '团队', '关于'];
+const SECTION_LABELS = ['首页', '数据', '功能', '应用', '文档', '团队', '关于'];
 const SCROLL_COOLDOWN = 100;
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState(0);
+  const [viewH, setViewH] = useState(() => window.innerHeight);
   const isScrolling = useRef(false);
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    const updateVh = () => setViewH(window.innerHeight);
+    window.addEventListener('resize', updateVh);
+    return () => window.removeEventListener('resize', updateVh);
+  }, []);
 
   const totalSections = SECTION_LABELS.length;
 
@@ -104,7 +111,7 @@ export default function Home() {
   ];
 
   return (
-    <div ref={containerRef} className="h-screen bg-white overflow-hidden relative">
+    <div ref={containerRef} className="bg-white overflow-hidden relative" style={{ height: viewH }}>
       {/* Side Navigation Indicator */}
       <nav className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-3">
         {SECTION_LABELS.map((label, index) => (
@@ -136,13 +143,13 @@ export default function Home() {
 
       {/* Sections slider */}
       <motion.div
-        className="h-screen"
-        animate={{ y: `-${currentSection * 100}vh` }}
+        style={{ height: viewH * totalSections }}
+        animate={{ y: -(currentSection * viewH) }}
         transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
       >
 
       {/* Hero Section - Full screen blurred background */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative flex items-center justify-center overflow-hidden" style={{ height: viewH }}>
         {/* Blurred background image */}
         <div className="absolute inset-0">
           <img
@@ -218,96 +225,103 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Stats + Features Section */}
-      <section className="h-screen flex flex-col justify-center py-12 overflow-hidden">
+      {/* Stats Section */}
+      <section className="flex flex-col justify-center overflow-hidden" style={{ height: viewH }}>
         <div className="max-w-7xl mx-auto px-6 w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -5 }}
-            >
-              <Card className="p-6 text-center border-2 hover:border-[#A9D098] transition-all hover:shadow-lg">
-                <stat.icon className="h-8 w-8 mx-auto mb-3 text-[#4C9755]" />
-                <div className="text-3xl font-bold bg-gradient-to-r from-[#A9D098] to-[#4C9755] bg-clip-text text-transparent">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">{stat.label}</div>
-              </Card>
-            </motion.div>
-          ))}
-        </motion.div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-16 w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
           <motion.div
-            initial={{ scale: 0 }}
-            whileInView={{ scale: 1 }}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className="inline-block mb-4"
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
           >
-            <div className="w-12 h-12 bg-gradient-to-r from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mx-auto">
-              <Sparkles className="h-6 w-6 text-white" />
-            </div>
+            <h2 className="text-4xl font-bold mb-3">项目数据</h2>
+            <p className="text-xl text-gray-600">用数字说话</p>
           </motion.div>
-          <h2 className="text-4xl font-bold mb-4">强大功能</h2>
-          <p className="text-xl text-gray-600">全面的故障树分析所需的一切</p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -8 }}
-
-            >
-              <Card className="p-6 h-full hover:shadow-2xl transition-all border-2 hover:border-transparent relative overflow-hidden group">
-                {/* Animated gradient background on hover */}
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity`}
-                />
-
-                <div
-                  className={`w-14 h-14 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-4 relative`}
-                >
-                  <feature.icon className="h-7 w-7 text-white relative z-10" />
-                </div>
-
-                <h3 className="font-bold text-xl mb-3 relative z-10">{feature.title}</h3>
-                <p className="text-gray-600 relative z-10 leading-relaxed">{feature.description}</p>
-
-                {/* Corner decoration */}
-                <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${feature.gradient} opacity-5 rounded-bl-full`} />
-              </Card>
-            </motion.div>
-          ))}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-8"
+          >
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <Card className="p-8 text-center border-2 hover:border-[#A9D098] transition-all hover:shadow-lg">
+                  <stat.icon className="h-10 w-10 mx-auto mb-4 text-[#4C9755]" />
+                  <div className="text-4xl font-bold bg-gradient-to-r from-[#A9D098] to-[#4C9755] bg-clip-text text-transparent">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">{stat.label}</div>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
-      </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="flex flex-col justify-center overflow-hidden" style={{ height: viewH }}>
+        <div className="max-w-7xl mx-auto px-6 w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: "spring", stiffness: 200 }}
+              className="inline-block mb-4"
+            >
+              <div className="w-12 h-12 bg-gradient-to-r from-[#A9D098] to-[#4C9755] rounded-xl flex items-center justify-center mx-auto">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+            </motion.div>
+            <h2 className="text-4xl font-bold mb-3">强大功能</h2>
+            <p className="text-xl text-gray-600">全面的故障树分析所需的一切</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <Card className="p-5 h-full hover:shadow-2xl transition-all border-2 hover:border-transparent relative overflow-hidden group">
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity`}
+                  />
+                  <div
+                    className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-3 relative`}
+                  >
+                    <feature.icon className="h-6 w-6 text-white relative z-10" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-2 relative z-10">{feature.title}</h3>
+                  <p className="text-gray-600 relative z-10 leading-relaxed text-sm">{feature.description}</p>
+                  <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${feature.gradient} opacity-5 rounded-bl-full`} />
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Use Cases Section */}
-      <section className="h-screen flex items-center bg-gradient-to-b from-[#A9D098]/10 via-[#4C9755]/10 to-white py-20 relative overflow-hidden">
+      <section className="flex items-center bg-gradient-to-b from-[#A9D098]/10 via-[#4C9755]/10 to-white py-20 relative overflow-hidden" style={{ height: viewH }}>
         {/* Decorative background pattern */}
         <div className="absolute inset-0 opacity-5">
           <img
@@ -392,7 +406,7 @@ export default function Home() {
       </section>
 
       {/* Core Docs Section */}
-      <section className="h-screen flex items-center bg-gradient-to-b from-white via-[#4C9755]/5 to-white overflow-hidden">
+      <section className="flex items-center bg-gradient-to-b from-white via-[#4C9755]/5 to-white overflow-hidden" style={{ height: viewH }}>
         <div className="max-w-5xl mx-auto px-6 w-full">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -486,7 +500,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="h-screen flex items-center overflow-hidden"><div className="max-w-7xl mx-auto px-6 py-20 w-full">
+      <section className="flex items-center overflow-hidden" style={{ height: viewH }}><div className="max-w-7xl mx-auto px-6 py-20 w-full">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -548,7 +562,7 @@ export default function Home() {
       </div></section>
 
       {/* CTA + Footer Section */}
-      <section className="h-screen flex flex-col justify-center border-t bg-gradient-to-b from-white to-[#A9D098]/10 py-12 overflow-hidden">
+      <section className="flex flex-col justify-center border-t bg-gradient-to-b from-white to-[#A9D098]/10 py-12 overflow-hidden" style={{ height: viewH }}>
         <div className="max-w-7xl mx-auto px-6 w-full mb-16">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}

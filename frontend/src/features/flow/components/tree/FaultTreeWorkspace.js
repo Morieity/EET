@@ -308,7 +308,7 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
             proOptions={{ hideAttribution: true }}
           >
             <Controls position="bottom-left" />
-            <Background color="#dbe5f0" variant={variant} />
+            <Background key={variant} color="#dbe5f0" variant={variant} />
           </ReactFlow>
         </div>
       </div>
