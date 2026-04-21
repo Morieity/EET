@@ -14,6 +14,12 @@ export async function getFaultTree(id) {
   return resp.json();
 }
 
+export async function getFaultTreeByConversation(conversationId) {
+  const resp = await fetch(`/api/fault-trees/conversation/${encodeURIComponent(conversationId)}`);
+  if (!resp.ok) throw new Error(`Failed to fetch fault tree by conversation: ${resp.status}`);
+  return resp.json();
+}
+
 export async function updateFaultTree(id, payload) {
   const resp = await fetch(`/api/fault-trees/${encodeURIComponent(id)}`, {
     method: 'PUT',

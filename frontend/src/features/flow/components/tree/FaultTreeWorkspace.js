@@ -178,20 +178,39 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
   const onAddNode = useCallback(() => {
     const newNodeId = getId();
     const wrapperRect = flowWrapperRef.current?.getBoundingClientRect();
-    const position = screenToFlowPosition(
-      wrapperRect
-        ? { x: wrapperRect.left + wrapperRect.width / 2, y: wrapperRect.top + wrapperRect.height / 2 }
-        : { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-    );
+    const centerScreen = wrapperRect
+      ? { x: wrapperRect.left + wrapperRect.width / 2, y: wrapperRect.top + wrapperRect.height / 2 }
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const centerFlow = screenToFlowPosition(centerScreen);
+
+    // 在中心附近找一个不与已有节点重叠的位置
+    const currentNodes = nodesRef.current;
+    const NODE_W = 120;
+    const NODE_H = 50;
+    const STEP = 160;
+    let position = centerFlow;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const angle = attempt * (Math.PI * 2 / 8);
+      const radius = STEP * (Math.floor(attempt / 8) + 1);
+      const candidate = attempt === 0
+        ? centerFlow
+        : { x: centerFlow.x + Math.cos(angle) * radius, y: centerFlow.y + Math.sin(angle) * radius };
+      const overlaps = currentNodes.some(
+        (n) => Math.abs((n.position?.x ?? 0) - candidate.x) < NODE_W && Math.abs((n.position?.y ?? 0) - candidate.y) < NODE_H,
+      );
+      if (!overlaps) { position = candidate; break; }
+    }
 
     const newNode = {
       id: newNodeId,
       position,
       type: 'textUpdater',
-      data: { label: `Node ${newNodeId}`, remark: '' },
+      data: { label: `新事件节点`, remark: '' },
       style: { backgroundColor: '#40b586', color: 'white' },
+      selected: false,
     };
-    setNodes((snapshot) => snapshot.concat(newNode));
+    // 取消所有节点的选中状态，确保新节点以孤立方式加入（不触发自动连接）
+    setNodes((snapshot) => snapshot.map((n) => ({ ...n, selected: false })).concat(newNode));
   }, [screenToFlowPosition]);
 
   const onDeleteSelectedNode = useCallback(() => {
@@ -308,7 +327,7 @@ function FaultTreeWorkspaceInner({ tree, onBack, onSendToChat }) {
             proOptions={{ hideAttribution: true }}
           >
             <Controls position="bottom-left" />
-            <Background color="#dbe5f0" variant={variant} />
+            <Background key={variant} color="#dbe5f0" variant={variant} />
           </ReactFlow>
         </div>
       </div>
