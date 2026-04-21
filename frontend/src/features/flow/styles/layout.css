@@ -1,0 +1,218 @@
+/* ================================================
+   layout.css — 布局壳、侧栏、折叠、拖拽
+   所有自定义变量使用 --fc- 前缀
+   ================================================ */
+
+/* T001: CSS 变量 Token */
+:root {
+  /* Sidebar — 浅绿色 Gemini 风格 */
+  --fc-sidebar-bg: #eef5f0;
+  --fc-sidebar-width: 260px;
+  --fc-sidebar-collapsed-width: 56px;
+  --fc-sidebar-text: #1a1a1a;
+  --fc-sidebar-text-muted: #6b7280;
+  --fc-sidebar-hover-bg: #d8ede0;
+  --fc-sidebar-active-bg: #c8e6d0;
+  --fc-sidebar-border: #d0e0d5;
+  --fc-sidebar-transition: width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1);
+
+  /* Main area */
+  --fc-main-bg: #ffffff;
+  --fc-main-border: #e8e8e8;
+  --fc-msg-max-width: 720px;
+  --fc-composer-max-width: 760px;
+
+  /* Accent */
+  --fc-accent: #40b586;
+  --fc-accent-hover: #35a073;
+
+  /* Message bubbles */
+  --fc-user-bubble-bg: #f0f0f0;
+  --fc-user-bubble-text: #1a1a1a;
+  --fc-assistant-bubble-bg: transparent;
+
+  /* Input */
+  --fc-input-bg: #f7f7f8;
+  --fc-input-border: #e0e0e0;
+  --fc-input-radius: 12px;
+
+  /* Fault tree card */
+  --fc-card-bg: #f8fafb;
+  --fc-card-border: #e2e8f0;
+  --fc-card-radius: 10px;
+  --fc-card-height: 320px;
+
+  /* Text */
+  --fc-text-primary: #1a1a1a;
+  --fc-text-secondary: #555;
+  --fc-text-muted: #999;
+}
+
+/* T002: 布局类 — 两栏容器 + 边栏结构 */
+
+.fc-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.fc-sidebar {
+  background: var(--fc-sidebar-bg);
+  color: var(--fc-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--fc-sidebar-border);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: var(--fc-sidebar-transition);
+}
+
+/* 展开态内部内容 — 可见 */
+.fc-sidebar-header,
+.fc-sidebar-tabs,
+.fc-sidebar-list {
+  opacity: 1;
+  transition: opacity 0.18s ease 0.12s;
+}
+
+/* 折叠态内部内容 — 隐藏 */
+.fc-sidebar--collapsed .fc-sidebar-header,
+.fc-sidebar--collapsed .fc-sidebar-tabs,
+.fc-sidebar--collapsed .fc-sidebar-list {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+/* 收起态图标栏 */
+.fc-sidebar-icon-rail {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.fc-sidebar--collapsed .fc-sidebar-icon-rail {
+  display: flex;
+}
+.fc-sidebar-icon-rail .ant-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fc-sidebar-text-muted);
+  font-size: 18px;
+}
+.fc-sidebar-icon-rail .ant-btn:hover {
+  background: var(--fc-sidebar-hover-bg);
+  color: var(--fc-sidebar-text);
+}
+.fc-sidebar-icon-rail .fc-rail-divider {
+  width: 28px;
+  height: 1px;
+  background: var(--fc-sidebar-border);
+  margin: 4px 0;
+}
+
+.fc-sidebar-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--fc-sidebar-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.fc-sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.fc-sidebar-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--fc-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.fc-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--fc-main-bg);
+  overflow: hidden;
+}
+
+/* 侧边栏折叠态 — 保留窄图标栏 */
+.fc-sidebar--collapsed {
+  width: var(--fc-sidebar-collapsed-width);
+  min-width: var(--fc-sidebar-collapsed-width);
+  overflow: hidden;
+}
+
+/* 汉堡菜单按钮 — sidebar 内部 */
+.fc-sidebar-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fc-sidebar-text-muted);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.fc-sidebar-toggle:hover {
+  background: var(--fc-sidebar-hover-bg);
+  color: var(--fc-sidebar-text);
+}
+
+/* Tab 栏样式 */
+.fc-sidebar-tabs {
+  display: flex;
+  padding: 4px 8px;
+  gap: 4px;
+  border-bottom: 1px solid var(--fc-sidebar-border);
+  flex-shrink: 0;
+}
+.fc-sidebar-tab {
+  flex: 1;
+  text-align: center;
+  padding: 6px 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 8px;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+  color: var(--fc-sidebar-text-muted);
+  font-weight: 400;
+}
+.fc-sidebar-tab:hover {
+  background: var(--fc-sidebar-hover-bg);
+}
+.fc-sidebar-tab--active {
+  background: var(--fc-sidebar-active-bg);
+  color: var(--fc-accent);
+  font-weight: 600;
+}
+
+/* 侧边栏拖动调整手柄 */
+.fc-sidebar-resize {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.fc-sidebar-resize:hover,
+.fc-sidebar-resize:active {
+  background: var(--fc-accent);
+}

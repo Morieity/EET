@@ -1,0 +1,234 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "position": {
+        "x": 468,
+        "y": 0
+      },
+      "data": {
+        "label": "发动机故障"
+      },
+      "type": "textUpdater",
+      "style": {
+        "backgroundColor": "#6ede87",
+        "color": "white"
+      },
+      "measured": {
+        "width": 123,
+        "height": 46
+      },
+      "selected": true
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": 468,
+        "y": 327
+      },
+      "data": {
+        "label": "Node 2"
+      },
+      "type": "textUpdater",
+      "style": {
+        "backgroundColor": "#ff0072",
+        "color": "white"
+      },
+      "measured": {
+        "width": 121,
+        "height": 42
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": 910,
+        "y": 327
+      },
+      "data": {
+        "label": "Node 3"
+      },
+      "type": "textUpdater",
+      "style": {
+        "backgroundColor": "#6865A5",
+        "color": "white"
+      },
+      "measured": {
+        "width": 121,
+        "height": 42
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": 689,
+        "y": 327
+      },
+      "data": {
+        "label": "Node 4"
+      },
+      "type": "textUpdater",
+      "style": {
+        "backgroundColor": "#40b586",
+        "color": "white"
+      },
+      "measured": {
+        "width": 121,
+        "height": 42
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": 843.5,
+        "y": 164
+      },
+      "type": "gate",
+      "data": {
+        "gateType": "AND"
+      },
+      "measured": {
+        "width": 33,
+        "height": 41
+      }
+    },
+    { 
+      "id": "n6",
+      "position": {
+        "x": 512,
+        "y": 164
+      },
+      "type": "gate",
+      "data": {
+        "gateType": "OR"
+      },
+      "measured": {
+        "width": 33,
+        "height": 41
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n7",
+      "position": {
+        "x": 168,
+        "y": 164
+      },
+      "type": "gate",
+      "data": {
+        "gateType": "AND"
+      },
+      "measured": {
+        "width": 33,
+        "height": 41
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n8",
+      "position": {
+        "x": 235,
+        "y": 326
+      },
+      "type": "textUpdater",
+      "data": {
+        "label": "第一排气管故障",
+        "remark": "发动机发生故障"
+      },
+      "style": {
+        "backgroundColor": "#40b586",
+        "color": "white"
+      },
+      "measured": {
+        "width": 133,
+        "height": 44
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "n9",
+      "position": {
+        "x": 0,
+        "y": 325
+      },
+      "type": "textUpdater",
+      "data": {
+        "label": "第二排气管故障"
+      },
+      "style": {
+        "backgroundColor": "#40b586",
+        "color": "white"
+      },
+      "measured": {
+        "width": 133,
+        "height": 44
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "n1-n5",
+      "source": "n1",
+      "target": "n5",
+      "type": "smoothstep"
+    },
+    {
+      "id": "n1-n6",
+      "source": "n1",
+      "target": "n6",
+      "type": "smoothstep"
+    },
+    {
+      "id": "n1-n7",
+      "source": "n1",
+      "target": "n7",
+      "type": "smoothstep"
+    },
+    {
+      "source": "n5",
+      "target": "n3",
+      "type": "smoothstep",
+      "id": "xy-edge__n5-n3"
+    },
+    {
+      "source": "n5",
+      "target": "n4",
+      "type": "smoothstep",
+      "id": "xy-edge__n5-n4"
+    },
+    {
+      "source": "n6",
+      "target": "n2",
+      "type": "smoothstep",
+      "id": "xy-edge__n6-n2"
+    },
+    {
+      "source": "n7",
+      "target": "n8",
+      "type": "smoothstep",
+      "id": "xy-edge__n7-n8"
+    },
+    {
+      "source": "n7",
+      "target": "n9",
+      "type": "smoothstep",
+      "id": "xy-edge__n7-n9"
+    }
+  ],
+  "viewport": {
+    "x": 425.87205495628723,
+    "y": 188.3997917087109,
+    "zoom": 0.8466095858159745
+  }
+}

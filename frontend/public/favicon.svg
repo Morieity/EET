@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Root node -->
+  <rect x="10" y="1" width="12" height="8" rx="2" fill="#40b586"/>
+  <!-- Vertical stem -->
+  <line x1="16" y1="9" x2="16" y2="14" stroke="#40b586" stroke-width="2"/>
+  <!-- Horizontal branch -->
+  <line x1="7" y1="14" x2="25" y2="14" stroke="#40b586" stroke-width="2"/>
+  <!-- Left branch down -->
+  <line x1="7" y1="14" x2="7" y2="19" stroke="#40b586" stroke-width="2"/>
+  <!-- Right branch down -->
+  <line x1="25" y1="14" x2="25" y2="19" stroke="#40b586" stroke-width="2"/>
+  <!-- Left child node -->
+  <rect x="1" y="19" width="12" height="8" rx="2" fill="#40b586"/>
+  <!-- Right child node -->
+  <rect x="19" y="19" width="12" height="8" rx="2" fill="#40b586"/>
+  <!-- Left grandchild stem -->
+  <line x1="7" y1="27" x2="7" y2="31" stroke="#40b586" stroke-width="1.5"/>
+  <!-- Right grandchild stem -->
+  <line x1="25" y1="27" x2="25" y2="31" stroke="#40b586" stroke-width="1.5"/>
+  <!-- Left grandchild node (small) -->
+  <circle cx="7" cy="31" r="1.5" fill="#40b586"/>
+  <!-- Right grandchild node (small) -->
+  <circle cx="25" cy="31" r="1.5" fill="#40b586"/>
+</svg>
