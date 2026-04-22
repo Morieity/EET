@@ -91,6 +91,7 @@ class ChatUseCase:
         事件类型:
           - {"type": "conversation", "conversation_id": ..., "name": ...}
           - {"type": "sources", "sources": [...]}
+                    - {"type": "generating_tree"}
           - {"type": "token", "content": ...}
           - {"type": "fault_tree", "fault_tree": {...}}
           - {"type": "done", "answer": ..., "conversation_id": ...}
@@ -269,6 +270,9 @@ class ChatUseCase:
             logger.info("Chat round saved for conversation: %s", conversation.id)
 
         if is_fault_tree_request:
+            # 前端依赖该事件展示“故障树加载中”状态卡片。
+            yield {"type": "generating_tree"}
+
             # 构建带工具指令的 messages，供 function calling 使用
             tool_instruction = (
                 "用户要求修改已有故障树。请调用 update_fault_tree 工具。要求：\n"
