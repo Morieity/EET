@@ -109,6 +109,9 @@ class _FakeVectorStore(IVectorStoreRepository):
     def search_relations(self, query: str, top_k: int = 20, score_threshold: float = 0.5) -> list[dict]:
         return []
 
+    def search_by_sources(self, source_keys: list[dict], query: str, k: int = 15) -> list[dict]:
+        return []
+
     def delete_relations_by_file(self, file_name: str) -> None:
         self.deleted_relation_sources.append(file_name)
 

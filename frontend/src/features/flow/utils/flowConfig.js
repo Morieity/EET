@@ -1,9 +1,8 @@
 import TextUpdaterNode from '../components/tree/TextUpdaterNode';
 import GateNode from '../components/tree/GateNode';
 
-// 简单生成全局自增ID
-let id = 5;
-export const getId = () => `n${id++}`;
+// 生成全局唯一 ID，避免与后端节点 ID（n1/n2/g1...）冲突
+export const getId = () => `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const nodeColor = (node) => {
   if (node.style && node.style.backgroundColor) {

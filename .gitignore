@@ -5,7 +5,7 @@
 *db/*
 
 # 预先忽略spec工具包
-*.github
+
 *.vscode
 *.specify
 *.vs
@@ -27,3 +27,5 @@ llm_model/
 # 忽略 Python 字节码
 *.pyc
 *.pyo
+
+*coderef

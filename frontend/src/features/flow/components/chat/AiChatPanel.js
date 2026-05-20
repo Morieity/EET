@@ -6,7 +6,7 @@ import { SendOutlined, PlusOutlined, RobotOutlined, UserOutlined, LoadingOutline
 import FaultTreeCard from '../tree/FaultTreeCard';
 import FaultTreeWorkspace from '../tree/FaultTreeWorkspace';
 import { extractFaultTreeFromText } from '../../utils/faultTreeParser';
-import { getFaultTree } from '../../services/faultTreeApi';
+import { getFaultTree, getFaultTreeByConversation } from '../../services/faultTreeApi';
 import { openUploadsFolder } from '../../services/fileApi';
 import { INTENT_CONFIG, DEFAULT_WELCOME_MESSAGE, PERSISTED_TREE_ID_PATTERN, createAssistantMessage } from '../../utils/constants';
 import useChatStream from '../../hooks/useChatStream';
@@ -233,15 +233,19 @@ export default function AiChatPanel({ initialConversationId, injectedTree, onInj
     }
 
     const persistedTreeId = resolvePersistedTreeId(tree);
-    if (!persistedTreeId) {
-      message.warning('该轮对话未关联已保存的故障树 ID，无法准确跳转到对应画布');
-      return;
-    }
 
     collapseSidebar?.();
     try {
-      const loadedTree = await getFaultTree(persistedTreeId);
-      setActiveTree(loadedTree);
+      if (persistedTreeId) {
+        const loadedTree = await getFaultTree(persistedTreeId);
+        setActiveTree(loadedTree);
+      } else if (tree?.conversation_id) {
+        // 兜底：通过对话 ID 查找最新关联的故障树
+        const loadedTree = await getFaultTreeByConversation(tree.conversation_id);
+        setActiveTree(loadedTree);
+      } else {
+        message.warning('该轮对话未关联已保存的故障树 ID，无法准确跳转到对应画布');
+      }
     } catch (err) {
       message.error('加载故障树失败: ' + err.message);
     }
