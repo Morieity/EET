@@ -27,3 +27,5 @@ llm_model/
 # 忽略 Python 字节码
 *.pyc
 *.pyo
+
+*coderef
