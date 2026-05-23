@@ -1,5 +1,10 @@
 # 忽略本地uv环境
 *.venv/
+.venv/
+
+# 忽略 .env（含 API Key），但保留示例文件
+.env
+!.env.example
 
 # 忽略数据库缓存
 *db/*

@@ -1,0 +1,37 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+
+# Git and editor metadata
+.git
+.github
+.vscode
+.vs
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.venv/
+
+# Runtime data and generated local state
+db/
+uploads/
+llm_model/
+pdf/
+test_logs/
+
+# Frontend artifacts are built from the frontend Docker context, not copied into the backend image
+frontend/
+
+# Local reference/generated folders
+coderef/
+specs/
+
+# Logs
+*.log
