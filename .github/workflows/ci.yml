@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ── 阶段 1: 依赖安装验证 + 单元测试 ─────────────────────────────
+  unit-tests:
+    name: 依赖验证 & 单元测试
+    runs-on: ubuntu-latest
+
+    env:
+      # 占位 Key：单元测试使用 Stub，不会发出真实 API 请求
+      LLM_API_KEY: "sk-placeholder-for-ci"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 配置 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # torch (~2 GB) 等大包必须缓存，否则每次 CI 都要重新下载
+      - name: 缓存 pip 包
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements2.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 这一步本身就是"远程环境依赖验证"：
+      # 验证 requirements2.txt 在全新 Linux 环境下可以完整安装，
+      # 捕获包冲突、平台不兼容、依赖缺失等问题。
+      - name: 安装依赖（验证 requirements2.txt 可完整解析）
+        run: pip install -r requirements2.txt
+
+      - name: 验证核心依赖可导入
+        run: |
+          python -c "
+          import langchain, langgraph, chromadb, flask, sqlalchemy
+          import fastembed, openai, pydantic
+          print('✓ 核心第三方依赖导入正常')
+          "
+
+      - name: 验证项目模块结构完整
+        run: |
+          python -c "
+          # 验证 Backend 各层模块均可导入（不触发真实 IO）
+          import Backend.Domain.Entities.conversation
+          import Backend.Application.ContextManagement.ContextManager
+          import Backend.Application.UseCases.ChatUseCase
+          import Backend.Infrastructure.document.WorkOrderParser
+          import Backend.Web.app_factory
+          print('✓ 项目模块结构导入正常')
+          "
+
+      # 运行所有 *_unit.py 测试：这些测试使用 Stub/Mock 隔离了 LLM 和向量库，
+      # 不需要真实模型文件或 API Key，在 CI 中可以直接运行。
+      - name: 运行单元测试
+        run: pytest tests/ -k "_unit" -v --tb=short
+
+  # ── 阶段 2: 应用启动冒烟测试 ────────────────────────────────────
+  smoke-test:
+    name: 启动冒烟测试
+    runs-on: ubuntu-latest
+    needs: unit-tests  # 单元测试通过后才运行
+
+    env:
+      LLM_API_KEY: "sk-placeholder-for-ci"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 配置 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 恢复 pip 缓存
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements2.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: 安装依赖
+        run: pip install -r requirements2.txt
+
+      # 冒烟测试：调用 create_app() 验证
+      #   1. DI 装配链路完整（数据库/仓储/用例/蓝图均可实例化）
+      #   2. 所有 API 路由已正确注册
+      # 注意：FastEmbed 模型只在第一次 embed() 时才下载，create_app() 不触发下载，
+      # 因此这里使用占位 Key 即可，不会发出真实网络请求。
+      - name: 冒烟测试：Flask 应用可正常启动并完成路由注册
+        run: |
+          python - <<'EOF'
+          import os, sys
+
+          os.environ.setdefault("LLM_API_KEY", "sk-placeholder-for-ci")
+
+          from Backend.Web.app_factory import create_app
+          app = create_app()
+
+          # 验证核心 API 路由已注册
+          rules = [str(r) for r in app.url_map.iter_rules()]
+          expected_routes = [
+              "/api/chat",
+              "/api/files",
+              "/api/fault-trees",
+              "/api/work-orders",
+          ]
+          missing = [r for r in expected_routes if not any(r in rule for rule in rules)]
+          if missing:
+              print(f"✗ 以下路由未注册: {missing}", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"✓ Flask 应用启动成功，已注册 {len(rules)} 个路由")
+          for route in sorted(rules):
+              print(f"  {route}")
+          EOF
