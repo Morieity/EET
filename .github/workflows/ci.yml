@@ -7,25 +7,23 @@ on:
     branches: [main, master]
 
 jobs:
-  # ── 阶段 1: 依赖安装验证 + 单元测试 ─────────────────────────────
   unit-tests:
-    name: 依赖验证 & 单元测试
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     env:
-      # 占位 Key：单元测试使用 Stub，不会发出真实 API 请求
       LLM_API_KEY: "sk-placeholder-for-ci"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: 配置 Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # torch (~2 GB) 等大包必须缓存，否则每次 CI 都要重新下载
-      - name: 缓存 pip 包
+      - name: Cache pip packages
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -33,55 +31,90 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # 这一步本身就是"远程环境依赖验证"：
-      # 验证 requirements2.txt 在全新 Linux 环境下可以完整安装，
-      # 捕获包冲突、平台不兼容、依赖缺失等问题。
-      - name: 安装依赖（验证 requirements2.txt 可完整解析）
-        run: pip install -r requirements2.txt
-
-      - name: 验证核心依赖可导入
+      - name: Install dependencies
         run: |
+          echo "[INFO] Installing dependencies from requirements2.txt"
+          pip install -r requirements2.txt
+          echo "[INFO] Dependency installation completed"
+
+      - name: Verify third-party imports
+        run: |
+          echo "[INFO] Verifying third-party package imports"
           python -c "
           import langchain, langgraph, chromadb, flask, sqlalchemy
           import fastembed, openai, pydantic
-          print('✓ 核心第三方依赖导入正常')
           "
+          echo "[INFO] Third-party imports verified"
 
-      - name: 验证项目模块结构完整
+      - name: Verify project module imports
         run: |
+          echo "[INFO] Verifying project module imports"
           python -c "
-          # 验证 Backend 各层模块均可导入（不触发真实 IO）
           import Backend.Domain.Entities.conversation
           import Backend.Application.ContextManagement.ContextManager
           import Backend.Application.UseCases.ChatUseCase
           import Backend.Infrastructure.document.WorkOrderParser
           import Backend.Web.app_factory
-          print('✓ 项目模块结构导入正常')
           "
+          echo "[INFO] Project module imports verified"
 
-      # 运行所有 *_unit.py 测试：这些测试使用 Stub/Mock 隔离了 LLM 和向量库，
-      # 不需要真实模型文件或 API Key，在 CI 中可以直接运行。
-      - name: 运行单元测试
-        run: pytest tests/ -k "_unit" -v --tb=short
+      - name: Run unit tests
+        run: |
+          echo "[INFO] Running unit tests (pattern: *_unit)"
+          pytest tests/ -k "_unit" -v --tb=short
+          echo "[INFO] Unit tests completed"
 
-  # ── 阶段 2: 应用启动冒烟测试 ────────────────────────────────────
-  smoke-test:
-    name: 启动冒烟测试
+  frontend-tests:
+    name: Frontend Tests (Jest)
     runs-on: ubuntu-latest
-    needs: unit-tests  # 单元测试通过后才运行
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          echo "[INFO] Installing npm dependencies (npm ci)"
+          npm ci --no-audit --no-fund
+          echo "[INFO] Frontend dependency installation completed"
+
+      - name: Run Jest unit tests
+        env:
+          CI: "true"
+        run: |
+          echo "[INFO] Running react-scripts test in CI mode"
+          npm test -- --watchAll=false --ci --reporters=default
+          echo "[INFO] Frontend Jest tests completed"
+
+  smoke-test:
+    name: Application Smoke Test
+    runs-on: ubuntu-latest
+    needs: unit-tests
 
     env:
       LLM_API_KEY: "sk-placeholder-for-ci"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: 配置 Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 恢复 pip 缓存
+      - name: Restore pip cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -89,16 +122,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: 安装依赖
-        run: pip install -r requirements2.txt
-
-      # 冒烟测试：调用 create_app() 验证
-      #   1. DI 装配链路完整（数据库/仓储/用例/蓝图均可实例化）
-      #   2. 所有 API 路由已正确注册
-      # 注意：FastEmbed 模型只在第一次 embed() 时才下载，create_app() 不触发下载，
-      # 因此这里使用占位 Key 即可，不会发出真实网络请求。
-      - name: 冒烟测试：Flask 应用可正常启动并完成路由注册
+      - name: Install dependencies
         run: |
+          echo "[INFO] Installing dependencies from requirements2.txt"
+          pip install -r requirements2.txt
+          echo "[INFO] Dependency installation completed"
+
+      - name: Verify application startup and route registration
+        run: |
+          echo "[INFO] Starting Flask application via create_app()"
           python - <<'EOF'
           import os, sys
 
@@ -107,7 +139,6 @@ jobs:
           from Backend.Web.app_factory import create_app
           app = create_app()
 
-          # 验证核心 API 路由已注册
           rules = [str(r) for r in app.url_map.iter_rules()]
           expected_routes = [
               "/api/chat",
@@ -117,10 +148,12 @@ jobs:
           ]
           missing = [r for r in expected_routes if not any(r in rule for rule in rules)]
           if missing:
-              print(f"✗ 以下路由未注册: {missing}", file=sys.stderr)
+              print(f"[ERROR] Missing expected routes: {missing}", file=sys.stderr)
               sys.exit(1)
 
-          print(f"✓ Flask 应用启动成功，已注册 {len(rules)} 个路由")
+          print(f"[INFO] Flask application initialized successfully")
+          print(f"[INFO] Total registered routes: {len(rules)}")
           for route in sorted(rules):
-              print(f"  {route}")
+              print(f"[INFO]   {route}")
           EOF
+          echo "[INFO] Application startup verification completed"
